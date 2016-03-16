@@ -639,6 +639,9 @@ class ViHelper():
 
         return True
 
+    def KeyCommandInProgress(self):
+        return self.key_inputs
+
     def NextKeyCommandCanBeMotion(self):
         """
         Checks if the next key can be a motion cmd
@@ -1333,16 +1336,8 @@ class ViHelper():
         Starts a : cmd input for the currently active (or soon to be 
         activated) tab.
 
-        We have use CallAfter if there is a page change event currently
-        in progress (may result in some incorrectly sent key/char evts)
         """
-        if self.ctrl.getMainControl().getMainAreaPanel().preparingPresenter:
-            wx.CallAfter(self.StartCmdInputPostEvents, initial_input, run_cmd)
-            return
-
-        self.StartCmdInputPostEvents(initial_input, run_cmd)
-
-    def StartCmdInputPostEvents(self, initial_input=None, run_cmd=False):
+        # TODO: handle switching between presenters
         selection_range = None
         if self.mode == ViHelper.VISUAL:
             if initial_input is None:
@@ -1567,7 +1562,7 @@ class ViHintDialog(wx.Frame):
 
         searchString = self.tfInput.GetValue()
 
-        foundPos = -26
+        foundPos = -2
         if accP in ((wx.ACCEL_NORMAL, wx.WXK_NUMPAD_ENTER),
                 (wx.ACCEL_NORMAL, wx.WXK_RETURN)):
             # Return pressed
