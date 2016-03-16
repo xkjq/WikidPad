@@ -47,18 +47,26 @@ from pwiki.StringOps import longPathEnc, longPathDec, utf8Enc, utf8Dec, BOM_UTF8
         createRandomString, pathDec
 
 
-class WikiData:
+from ..BaseWikiData import BasicWikiData, FileWikiData
+
+class WikiData(FileWikiData, BasicWikiData):
     "Interface to wiki data."
-    def __init__(self, wikiDocument, dataDir, tempDir):
+    def __init__(self, wikiDocument, dataDir, tempDir, app=None):
+        # app is unused in this gadfly implementation
+
+        self.dbType = "original_gadfly"
+
         self.wikiDocument = wikiDocument
         self.dataDir = dataDir
         self.connWrap = None
         self.cachedWikiPageLinkTermDict = None
         # tempDir is ignored
-        
-        # Only if this is true, the database is called to commit.
-        # This is necessary for read-only databases
-        self.commitNeeded = False
+
+# Moved to DbStructure
+#        
+#        # Only if this is true, the database is called to commit.
+#        # This is necessary for read-only databases
+#        self.commitNeeded = False
 
 #         dbName = self.wikiDocument.getWikiConfig().get("wiki_db", "db_filename",
 #                 u"").strip()
@@ -86,6 +94,24 @@ class WikiData:
             raise DbReadAccessError(e)
 
 
+    def reconnectDb(self):
+        try:
+            self.connWrap.close()
+            conn = gadfly.gadfly("wikidb", self.dataDir)
+            self.connWrap = DbStructure.ConnectWrap(conn)
+        except (IOError, OSError, ValueError), e:
+            traceback.print_exc()
+            raise DbReadAccessError(e)
+
+
+    def getDbFilenames(self):
+        # Hackish way to get all gadfly files
+        files = [f for fi in os.listdir(self.dataDir) if f.endswith("grl")]
+        files.append(wikidb)
+
+        return files
+
+
     def checkDatabaseFormat(self):
         return DbStructure.checkDatabaseFormat(self.connWrap)
 
@@ -99,6 +125,9 @@ class WikiData:
 
         # Update database from previous versions if necessary
         if formatcheck == 1:
+            # Offer the chance to backup a database
+            self.backupDatabase()
+
             try:
                 DbStructure.updateDatabase(self.connWrap, self.dataDir,
                         self.pagefileSuffix)
@@ -149,503 +178,6 @@ class WikiData:
         if lastException:
             raise lastException
 
-
-    # ---------- Direct handling of page data ----------
-
-    def getContent(self, word):
-        """
-        Function must work for read-only wiki.
-        """
-        try:
-            try:
-                filePath = self.getWikiWordFileName(word)
-            except WikiFileNotFoundException:
-                raise
-#                 if self.wikiDocument.getWikiConfig().getboolean("main",
-#                         "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-#                     return u""
-
-            content = loadEntireTxtFile(filePath)
-
-            return fileContentToUnicode(content)
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-        # TODO Remove method
-    def _updatePageEntry(self, word, moddate = None, creadate = None):
-        """
-        Update/Create entry with additional information for a page
-            (modif./creation date).
-        Not part of public API!
-        """
-        ti = time()
-        if moddate is None:
-            moddate = ti
-        
-        try:
-            data = self.connWrap.execSqlQuery("select word from wikiwords "
-                    "where word = ?", (word,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        try:
-            if len(data) < 1:
-                if creadate is None:
-                    creadate = ti
-
-                fileName = self.createWikiWordFileName(word)
-                self.connWrap.execSqlInsert("wikiwords", ("word", "created", 
-                        "modified", "presentationdatablock", "filepath",
-                        "filenamelowercase"),
-                        (word, creadate, moddate, "", fileName,
-                        fileName.lower()))
-            else:
-                self.connWrap.execSql("update wikiwords set modified = ? "
-                        "where word = ?", (moddate, word))
-
-                if self.wikiDocument.getWikiConfig().getboolean("main",
-                        "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-                    try:
-                        self.getWikiWordFileName(word, mustExist=True)
-                    except WikiFileNotFoundException:
-                        fileName = self.createWikiWordFileName(word)
-
-                        self.connWrap.execSql("update wikiwords set filepath = ?, "
-                                "filenamelowercase = ? where word = ?",
-                                (fileName, fileName.lower(), word))
-
-            self.cachedWikiPageLinkTermDict = None
-            self.commitNeeded = True
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def setContent(self, word, content, moddate = None, creadate = None):
-        """
-        Store unicode text for wikiword word, regardless if previous
-        content exists or not. creadate will be used for new content
-        only.
-        
-        moddate -- Modification date to store or None for current
-        creadate -- Creation date to store or None for current        
-        """
-        try:
-            self._updatePageEntry(word, moddate, creadate)
-
-            filePath = self.getWikiWordFileName(word, mustExist=False)
-            writeEntireFile(filePath, content, self.editorTextMode)
-
-            fileSig = self.wikiDocument.getFileSignatureBlock(filePath)
-            self.connWrap.execSql("update wikiwords set filesignature = ?, "
-                    "metadataprocessed = ? where word = ?", (fileSig, 0, word))
-
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def _renameContent(self, oldWord, newWord):
-        """
-        The content which was stored under oldWord is stored
-        after the call under newWord. The self.cachedWikiPageLinkTermDict
-        dictionary is invalidated, other caches are transferred.
-        """
-        try:
-            oldFilePath = self.getWikiWordFileNameRaw(oldWord)
-            # To throw exception in case of error
-            self.getWikiWordFileName(oldWord)
-
-            head, oldFileName = os.path.split(oldFilePath)
-#             head = pathDec(head)
-#             oldFileName = pathDec(oldFileName)
-
-            fileName = self.createWikiWordFileName(newWord)
-            newFilePath = os.path.join(head, fileName)
-
-            os.rename(longPathEnc(os.path.join(self.dataDir, oldFilePath)),
-                    longPathEnc(os.path.join(self.dataDir, newFilePath)))
-
-            self.cachedWikiPageLinkTermDict = None
-
-            self.connWrap.execSql("update wikiwords set word = ?, filepath = ?, "
-                    "filenamelowercase = ?, metadataprocessed = ? where word = ?",
-                    (newWord, newFilePath, fileName.lower(), 0, oldWord))
-            self.commitNeeded = True
-
-###            del self._getCachedWikiPageLinkTermDict()[oldWord]
-###            self._getCachedWikiPageLinkTermDict()[newWord] = 1
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-
-    def _deleteContent(self, word):
-        try:
-            try:
-                fileName = self.getWikiWordFileName(word)
-            except WikiFileNotFoundException:
-                if self.wikiDocument.getWikiConfig().getboolean("main",
-                        "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-                    fileName = None
-                else:
-                    raise
-
-            self.connWrap.execSql("delete from wikiwords where word = ?",
-                    (word,))
-            self.commitNeeded = True
-            self.cachedWikiPageLinkTermDict = None
-            if fileName is not None and os.path.exists(fileName):
-                os.unlink(fileName)
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def getTimestamps(self, word):
-        """
-        Returns a tuple with modification, creation and visit date of
-        a word or (None, None, None) if word is not in the database.
-        Aliases must be resolved beforehand.
-        Function must work for read-only wiki.
-        """
-        try:
-            dates = self.connWrap.execSqlQuery(
-                    "select modified, created, visited from wikiwords where word = ?",
-                    (word,))
-    
-            if len(dates) > 0:
-                return (float(dates[0][0]), float(dates[0][1]), float(dates[0][2]))
-            else:
-                return (None, None, None)  # ?
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def setTimestamps(self, word, timestamps):
-        """
-        Set timestamps for an existing wiki page.
-        Aliases must be resolved beforehand.
-        """
-        moddate, creadate, visitdate = timestamps[:3]
-
-        try:
-            data = self.connWrap.execSqlQuery("select word from wikiwords "
-                    "where word = ?", (word,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        try:
-            if len(data) < 1:
-                raise WikiFileNotFoundException
-            else:
-                self.connWrap.execSql("update wikiwords set modified = ?, "
-                        "created = ?, visited = ? where word = ?",
-                        (moddate, creadate, visitdate, word))
-                self.commitNeeded = True
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def setWikiWordReadOnly(self, word, flag):
-        """
-        Set readonly flag of a wikiword. Warning: Methods in WikiData do not
-        respect this flag.
-        word -- wikiword to modify (must exist, aliases must be resolved
-                beforehand)
-        flag -- integer value. 0: Readwrite; &1: Readonly
-        """
-        try:
-            data = self.connWrap.execSqlQuery("select word from wikiwords "
-                    "where word = ?", (word,))
-        except (IOError, OSError, sqlite.Error), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        try:
-            if len(data) < 1:
-                raise WikiFileNotFoundException
-            else:
-                self.connWrap.execSql("update wikiwords set readonly = ? "
-                        "where word = ?", (flag, word))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-        
-
-    def getWikiWordReadOnly(self, word):
-        """
-        Returns readonly flag of a wikiword. Warning: Methods in WikiData do not
-        respect this flag.
-        """
-        try:
-            data = self.connWrap.execSqlQuerySingleItem(
-                    "select readonly from wikiwords where word = ?",
-                    (word,))
-            if data is None:
-                return None
-            else:
-                return int(data)
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def getExistingWikiWordInfo(self, wikiWord, withFields=()):
-        """
-        Get information about an existing wiki word
-        Aliases must be resolved beforehand.
-        Function must work for read-only wiki.
-        withFields -- Seq. of names of fields which should be included in
-            the output. If this is not empty, a tuple is returned
-            (relation, ...) with ... as further fields in the order mentioned
-            in withfields.
-
-            Possible field names:
-                "modified": Modification date of page
-                "created": Creation date of page
-                "visited": Last visit date of page
-                "readonly": Read only flag
-                "firstcharpos": Dummy returning very high value
-        """
-        if withFields is None:
-            withFields = ()
-
-        addFields = ""
-        converters = [lambda s: s]
-
-        for field in withFields:
-            if field == "modified":
-                addFields += ", modified"
-                converters.append(float)
-            elif field == "created":
-                addFields += ", created"
-                converters.append(float)
-            elif field == "visited":
-                addFields += ", visited"
-                converters.append(float)
-            elif field == "readonly":
-                addFields += ", readonly"
-                converters.append(int)
-            elif field == "firstcharpos":
-                # Fake character position. TODO More elegantly
-                addFields += ", 0"
-                converters.append(lambda s: 2000000000L)
-
-
-        sql = "select word%s from wikiwords where word = ?" % addFields
-
-        try:
-            if len(withFields) > 0:
-                dbresult = [tuple(c(item) for c, item in zip(converters, row))
-                        for row in self.connWrap.execSqlQuery(sql, (wikiWord,))]
-            else:
-                dbresult = self.connWrap.execSqlQuerySingleColumn(sql, (wikiWord,))
-            
-            if len(dbresult) == 0:
-                raise WikiWordNotFoundException(wikiWord)
-            
-            return dbresult[0]
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-
-
-    # ---------- Renaming/deleting pages with cache update or invalidation ----------
-
-    def renameWord(self, word, toWord):
-        # commit anything pending so we can rollback on error
-        self.commitNeeded = True
-        self.commit()
-        try:
-            try:
-                self.connWrap.execSql("update wikirelations set word = ? where word = ?", (toWord, word))
-                self.connWrap.execSql("update wikiwordattrs set word = ? where word = ?", (toWord, word))
-                self.connWrap.execSql("update todos set word = ? where word = ?", (toWord, word))
-                self.connWrap.execSql("update wikiwordmatchterms set word = ? where word = ?", (toWord, word))
-                self._renameContent(word, toWord)
-                self.commitNeeded = True
-                self.commit()
-            except:
-                self.connWrap.rollback()
-                raise
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def deleteWord(self, word, delContent=True):
-        """
-        delete everything about the wikiword passed in. an exception is raised
-        if you try and delete the wiki root node.
-        
-        delContent -- Should actual content be deleted as well? (Parameter is
-                not part of official API)
-        """
-        if word != self.wikiDocument.getWikiName():
-            try:
-                self.commit()
-                try:
-                    # don't delete the relations to the word since other
-                    # pages still have valid outward links to this page.
-                    # just delete the content
-                    self.deleteChildRelationships(word)
-                    self.deleteAttributes(word)
-                    self.deleteTodos(word)
-                    if delContent:
-                        self._deleteContent(word)
-                    self.deleteWikiWordMatchTerms(word, syncUpdate=False)
-                    self.deleteWikiWordMatchTerms(word, syncUpdate=True)
-                    self.commit()
-                except:
-                    self.connWrap.rollback()
-                    raise
-            except (IOError, OSError, ValueError), e:
-                traceback.print_exc()
-                raise DbWriteAccessError(e)
-                
-            try:
-                # due to some bug we have to close and reopen the db sometimes
-                self.connWrap.close()
-                conn = gadfly.gadfly("wikidb", self.dataDir)
-                self.connWrap = DbStructure.ConnectWrap(conn)
-            except (IOError, OSError, ValueError), e:
-                traceback.print_exc()
-                raise DbReadAccessError(e)
-        else:
-            raise WikiDataException(_(u"You cannot delete the root wiki node"),
-                    "delete rootPage")
-
-
-
-    def setMetaDataState(self, word, state):
-        """
-        Set the state of meta-data processing for a particular word.
-        See Consts.WIKIWORDMETADATA_STATE_*
-        """
-        try:
-            self.connWrap.execSql("update wikiwords set metadataprocessed = ? "
-                    "where word = ?", (state, word))
-            self.commitNeeded = True
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def getMetaDataState(self, word):
-        """
-        Retrieve meta-data processing state of a particular wiki word.
-        """
-        try:
-            return self.connWrap.execSqlQuerySingleItem("select metadataprocessed "
-                    "from wikiwords where word = ?", (word,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def fullyResetMetaDataState(self, state=0):
-        """
-        Reset state of all wikiwords.
-        """
-        self.connWrap.execSql("update wikiwords set metadataprocessed = ?",
-                (state,))
-        self.commitNeeded = True
-
-
-    _METADATASTATE_NUMCOPARE_TO_SQL = {"==": "=", ">=": "<=", "<=": ">=",
-            "!=": "!=", ">": "<", "<": ">"}
-
-    def getWikiPageNamesForMetaDataState(self, state, compare="=="):
-        """
-        Retrieve a list of all words with a particular meta-data processing
-        state.
-        """
-        sqlCompare = self._METADATASTATE_NUMCOPARE_TO_SQL.get(compare)
-        if sqlCompare is None:
-            raise InternalError(u"getWikiPageNamesForMetaDataState: Bad compare '%s'" %
-                    compare)
-
-        try:
-            return self.connWrap.execSqlQuerySingleColumn("select word "
-                    "from wikiwords where metadataprocessed " + sqlCompare +
-                    " ?", (state,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def validateFileSignatureForWikiPageName(self, word, setMetaDataDirty=False, 
-            refresh=False):
-        """
-        Returns True if file signature stored in DB matches the file
-        containing the content, False otherwise.
-        """
-        try:
-            try:
-                filePath = self.getWikiWordFileName(word)
-            except WikiFileNotFoundException:
-                if self.wikiDocument.getWikiConfig().getboolean("main",
-                        "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-                    # File is missing and this should be handled gracefully
-                    return True
-                else:
-                    raise
-
-#             if self.wikiDocument.getWikiConfig().getboolean("main",
-#                     "wikiPageFiles_gracefulOutsideAddAndRemove", True) and \
-#                     not os.path.exists(filePath):
-#                 # File is missing and this should be handled gracefully
-#                 self.refreshWikiPageLinkTerms(deleteFully=True)
-#                 return True
-
-            fileSig = self.wikiDocument.getFileSignatureBlock(filePath)
-
-            dbFileSig = self.connWrap.execSqlQuerySingleItem(
-                    "select filesignature from wikiwords where word = ?",
-                    (word,), strConv=False)
-            
-            return dbFileSig == fileSig
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def refreshFileSignatureForWikiPageName(self, word):
-        """
-        Sets file signature to match current file.
-        """
-        try:
-            filePath = self.getWikiWordFileName(word)
-            fileSig = self.wikiDocument.getFileSignatureBlock(filePath)
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        try:
-            self.connWrap.execSql("update wikiwords set filesignature = ? "
-                    "where word = ?", (fileSig, word))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-
-#             self.execSql("update wikiwords set filesignature = ?, "
-#                     "metadataprocessed = ? where word = ?", (fileSig, 0, word))
-# 
-#                     fileSig = self.wikiDocument.getFileSignatureBlock(fullPath)
-
-    
 
     # ---------- Handling of relationships cache ----------
 
@@ -859,66 +391,12 @@ class WikiData:
             try:
                 self.connWrap.execSqlInsert("wikirelations", ("word", "relation",
                         "created"), (word, rel[0], time()))
-                self.commitNeeded = True
             except (IOError, OSError, ValueError), e:
                 traceback.print_exc()
                 raise DbWriteAccessError(e)
 
             returnValue = True
         return returnValue
-
-    def updateChildRelations(self, word, childRelations):
-        self.deleteChildRelationships(word)
-        self.getExistingWikiWordInfo(word)
-        for r in childRelations:
-            self._addRelationship(word, r)
-
-    def deleteChildRelationships(self, fromWord):
-        try:
-            self.connWrap.execSql("delete from wikirelations where word = ?",
-                    (fromWord,))
-            self.commitNeeded = True
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def getAllSubWords(self, words, level=-1):
-        """
-        Return all words which are children, grandchildren, etc.
-        of words and the words itself. Used by the "export/print Sub-Tree"
-        functions. All returned words are real existing words, no aliases.
-        Function must work for read-only wiki.
-        """
-        checkList = [(w, 0)
-                for w in (self.getWikiPageNameForLinkTerm(w) for w in words)
-                if w is not None]
-        checkList.reverse()
-        
-        resultSet = {}
-        result = []
-
-        while len(checkList) > 0:
-            toCheck, chLevel = checkList.pop()
-            if resultSet.has_key(toCheck):
-                continue
-
-            result.append(toCheck)
-            resultSet[toCheck] = None
-            
-            if level > -1 and chLevel >= level:
-                continue  # Don't go deeper
-
-            children = self.getChildRelationships(toCheck, existingonly=True,
-                    selfreference=False)
-
-            children = [(self.getWikiPageNameForLinkTerm(c), chLevel + 1)
-                    for c in children]
-            children.reverse()
-            checkList += children
-
-        return result
-
 
     def findBestPathFromWordToWord( self, word, toWord ):
         """
@@ -962,19 +440,6 @@ class WikiData:
 #         wikiWords = [w for w in wikiWords if not w.startswith('[')]
 #         return wikiWords
 
-    def getAllDefinedWikiPageNames(self):
-        """
-        Get the names of all wiki pages in the db, no aliases
-        Function must work for read-only wiki.
-        """
-        try:
-            return self.connWrap.execSqlQuerySingleColumn("select word "
-                    "from wikiwords")
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-            
-
     def getDefinedWikiPageNamesStartingWith(self, thisStr):
         """
         Get the names of all wiki pages in the db starting with  thisStr
@@ -984,15 +449,6 @@ class WikiData:
             words = self.getAllDefinedWikiPageNames()
             return [w for w in words if w.startswith(thisStr)]
 
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def isDefinedWikiPageName(self, word):
-        try:
-            return bool(self.connWrap.execSqlQuerySingleItem(
-                    "select word from wikiwords where word = ?", (word,)))
         except (IOError, OSError, ValueError), e:
             traceback.print_exc()
             raise DbReadAccessError(e)
@@ -1023,80 +479,8 @@ class WikiData:
             raise DbWriteAccessError(e)
 
 
-    def refreshWikiPageLinkTerms(self, deleteFully=False):
-        """
-        Refreshes the internal list of defined pages which
-        may be different from the list of pages for which
-        content is available (if .wiki files were added or removed).
-        The function tries to conserve additional informations
-        (creation/modif. date) if possible.
-        
-        With deleteFully == False it is mainly called during rebuilding
-        of the wiki so it must not rely on the presence of other cache
-        information (e.g. relations)
-        
-        With deleteFully == True it is called if a missing or externally
-        added file is detected and content names must be rebuilt without
-        full rebuild of the wiki. In this case caches exist and are updated.
-
-        The self.cachedWikiPageLinkTermDict is invalidated.
-        """
-        diskFiles = frozenset(self._getAllWikiFileNamesFromDisk())
-        dbFiles = frozenset(self._getAllWikiFileNamesFromDb())
-
-        self.cachedWikiPageLinkTermDict = None
-
-        try:
-            # Delete words for which no file is present anymore
-            for path in self.connWrap.execSqlQuerySingleColumn(
-                    "select filepath from wikiwords"):
-
-                testPath = longPathEnc(os.path.join(self.dataDir, path))
-                if not os.path.exists(testPath) or not os.path.isfile(testPath):
-                    if deleteFully:
-                        words = self.connWrap.execSqlQuerySingleColumn(
-                                "select word from wikiwords "
-                                "where filepath = ?", (path,))
-                        for word in words:
-                            try:
-                                self.deleteWord(word, delContent=False)
-                            except WikiDataException, e:
-                                if e.getTag() != "delete rootPage":
-                                    raise
-
-
-                    self.connWrap.execSql("delete from wikiwords "
-                            "where filepath = ?", (path,))
-                    self.commitNeeded = True
-
-            # Add new words:
-            ti = time()
-            for path in (diskFiles - dbFiles):
-                fullPath = os.path.join(self.dataDir, path)
-                st = os.stat(longPathEnc(fullPath))
-                
-                wikiWord = self._findNewWordForFile(path)
-
-                if wikiWord is not None:
-                    fileSig = self.wikiDocument.getFileSignatureBlock(fullPath)
-
-                    self.connWrap.execSqlInsert("wikiwords", ("word", "created", 
-                            "modified", "filepath", "filenamelowercase",
-                            "filesignature", "metadataprocessed"),
-                            (wikiWord, ti, st.st_mtime, path, path.lower(),
-                            fileSig, 0))
-                    self.commitNeeded = True
-
-                    page = self.wikiDocument.getWikiPage(wikiWord)
-                    page.refreshSyncUpdateMatchTerms()
-
-
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
     def _getCachedWikiPageLinkTermDict(self):
+        # TODO: case insensitivity
         try:
             if self.cachedWikiPageLinkTermDict is None:
                 result = {}
@@ -1117,198 +501,6 @@ class WikiData:
         except (IOError, OSError, ValueError), e:
             traceback.print_exc()
             raise DbReadAccessError(e)
-
-
-    # TODO More general Wikiword to filename mapping
-    def _getAllWikiFileNamesFromDisk(self):   # Used for rebuilding wiki
-        try:
-            files = glob.glob(join(self.dataDir, u'*' + self.pagefileSuffix))
-
-            return [pathDec(basename(fn)) for fn in files]
-
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def _getAllWikiFileNamesFromDb(self):   # Used for rebuilding wiki
-        try:
-            return self.connWrap.execSqlQuerySingleColumn("select filepath "
-                    "from wikiwords")
-
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def getWikiWordFileNameRaw(self, wikiWord):
-        """
-        Not part of public API!
-        """
-        try:
-            path = self.connWrap.execSqlQuerySingleItem("select filepath "
-                    "from wikiwords where word = ?", (wikiWord,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        if path is None:
-            raise WikiFileNotFoundException(
-                    _(u"Wiki page not found (no path information) for word: %s") %
-                    wikiWord)
-
-        return path
-
-
-    def getWikiWordFileName(self, wikiWord, mustExist=True):
-        """
-        Not part of public API!
-        Function must work for read-only wiki.
-        """
-        try:
-            path = longPathEnc(join(self.dataDir,
-                    self.getWikiWordFileNameRaw(wikiWord)))
-    
-            if mustExist and \
-                    (not os.path.exists(path) or not os.path.isfile(path)):
-                 raise WikiFileNotFoundException(
-                        _(u"Wiki page not found (bad path information) for word: %s") %
-                        wikiWord)
-        except WikiFileNotFoundException:
-            if self.wikiDocument.getWikiConfig().getboolean("main",
-                    "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-                # Refresh content names and try again
-                self.refreshWikiPageLinkTerms(deleteFully=True)
-            
-                path = longPathEnc(join(self.dataDir,
-                        self.getWikiWordFileNameRaw(wikiWord)))
-        
-                if mustExist and \
-                        (not os.path.exists(path) or not os.path.isfile(path)):
-                     raise WikiFileNotFoundException(
-                            _(u"Wiki page not found (bad path information) for word: %s") %
-                            wikiWord)
-            else:
-                raise
-
-        return path
-
-
-    def createWikiWordFileName(self, wikiWord):
-        """
-        Create a filename for wikiWord which is not yet in the database or
-        a file with that name in the data directory
-        """
-        asciiOnly = self.wikiDocument.getWikiConfig().getboolean("main",
-                "wikiPageFiles_asciiOnly", False)
-                
-        maxFnLength = self.wikiDocument.getWikiConfig().getint("main",
-                "wikiPageFiles_maxNameLength", 120)
-
-        icf = iterCompatibleFilename(wikiWord, self.pagefileSuffix,
-                asciiOnly=asciiOnly, maxLength=maxFnLength)
-        try:
-            for i in range(30):   # "while True" would be too dangerous
-                fileName = icf.next()
-                existing = self.connWrap.execSqlQuerySingleColumn(
-                        "select filenamelowercase from wikiwords "
-                        "where filenamelowercase = ?", (fileName.lower(),))
-                if len(existing) > 0:
-                    continue
-                if os.path.exists(longPathEnc(join(self.dataDir, fileName))):
-                    continue
-    
-                return fileName
-    
-            return None
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def _guessWikiWordFileName(self, wikiWord):
-        """
-        Try to find an existing file in self.dataDir which COULD BE the page
-        file for wikiWord.
-        Called when external adding of files should be handled gracefully.
-        Returns either the filename relative to self.dataDir or None.
-        """
-        try:
-            asciiOnly = self.wikiDocument.getWikiConfig().getboolean("main",
-                    "wikiPageFiles_asciiOnly", False)
-            
-            maxFnLength = self.wikiDocument.getWikiConfig().getint("main",
-                    "wikiPageFiles_maxNameLength", 120)
-
-            # Try first with current ascii-only setting
-            icf = iterCompatibleFilename(wikiWord, self.pagefileSuffix,
-                    asciiOnly=asciiOnly, maxLength=maxFnLength)
-    
-            for i in range(2):
-                fileName = icf.next()
-
-                existing = self.connWrap.execSqlQuerySingleColumn(
-                        "select filenamelowercase from wikiwords "
-                        "where filenamelowercase = ?", (fileName.lower(),))
-                if len(existing) > 0:
-                    continue
-                if not os.path.exists(longPathEnc(join(self.dataDir, fileName))):
-                    continue
-
-                return fileName
-
-            # Then the same with opposite ascii-only setting
-            icf = iterCompatibleFilename(wikiWord, self.pagefileSuffix,
-                    asciiOnly=not asciiOnly, maxLength=maxFnLength)
-    
-            for i in range(2):
-                fileName = icf.next()
-
-                existing = self.connWrap.execSqlQuerySingleColumn(
-                        "select filenamelowercase from wikiwords "
-                        "where filenamelowercase = ?", (fileName.lower(),))
-                if len(existing) > 0:
-                    continue
-                if not os.path.exists(longPathEnc(join(self.dataDir, fileName))):
-                    continue
-
-                return fileName
-            
-            return None
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def isDefinedWikiLinkTerm(self, word):
-        "check if a word is a valid wikiword (page name or alias)"
-        return bool(self.getWikiPageNameForLinkTerm(word))
-
-
-#     # TODO More reliably esp. for aliases
-#     def isDefinedWikiWord(self, word):
-#         "check if a word is a valid wikiword (page name or alias)"
-#         return self._getCachedWikiPageLinkTermDict().has_key(word)
-
-
-    def getAllProducedWikiLinks(self):
-        """
-        Return all links stored by production (in contrast to resolution)
-        Function must work for read-only wiki.
-        """
-        return self._getCachedWikiPageLinkTermDict().keys()
-
-#         try:
-#             otherTerms = self.connWrap.execSqlQuery("select matchterm, type "
-#                     "from wikiwordmatchterms")
-#         except (IOError, OSError, ValueError), e:
-#             traceback.print_exc()
-#             raise DbReadAccessError(e)
-# 
-#         result = [match for match, typ in otherTerms
-#                 if typ & Consts.WIKIWORDMATCHTERMS_TYPE_ASLINK]
-# 
-#         return result
 
 
     def getWikiPageLinkTermsStartingWith(self, thisStr, caseNormed=False):
@@ -1420,11 +612,6 @@ class WikiData:
         return [row[0] for row in rows if float(row[1]) >= startTime and
                 float(row[1]) < endTime and not row[0].startswith('[')]
 
-
-    _STAMP_TYPE_TO_FIELD = {
-            0: "modified",
-            1: "created"
-        }
 
     def getTimeMinMax(self, stampType):
         """
@@ -1616,81 +803,6 @@ class WikiData:
         return self.cachedGlobalAttrs
 
 
-    def getDistinctAttributeValues(self, key):
-        try:
-            return self.connWrap.execSqlQuerySingleColumn("select distinct(value) "
-                    "from wikiwordattrs where key = ?", (key,))  #  order by value
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def getAttributeTriples(self, word, key, value,
-            withFields=("word", "key", "value")):
-        """
-        Function must work for read-only wiki.
-        word, key and value can either be unistrings or None.
-        """
-        if withFields is None:
-            withFields = ()
-
-        cols = []
-        for field in withFields:
-            if field in ("word", "key", "value"):
-                cols.append(field)
-        
-        if len(cols) == 0:
-            return []
-        
-        colTxt = ", ".join(cols)
-        
-        conjunction = Conjunction("where ", "and ")
-        
-        query = "select distinct " + colTxt + " from wikiwordattrs "
-        parameters = []
-        
-        if word is not None:
-            parameters.append(word)
-            query += conjunction() + "word = ? "
-        
-        if key is not None:
-            parameters.append(key)
-            query += conjunction() + "key = ? "
-
-        if value is not None:
-            parameters.append(value)
-            query += conjunction() + "value = ? "
-
-        try:
-            return self.connWrap.execSqlQuery(query, tuple(parameters))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def getWordsForAttributeName(self, key):
-        try:
-            return self.connWrap.execSqlQuerySingleColumn(
-                    "select distinct(word) from wikiwordattrs where key = ? ",
-                    (key,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
-    def getAttributesForWord(self, word):
-        """
-        Returns list of tuples (key, value) of key and value
-        of all attributes for word.
-        """
-        try:
-            return self.connWrap.execSqlQuery("select key, value "+
-                        "from wikiwordattrs where word = ?", (word,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-
     def _setAttribute(self, word, key, value):
         # make sure the value doesn't already exist for this attribute
         try:
@@ -1706,131 +818,21 @@ class WikiData:
             try:
                 self.connWrap.execSqlInsert("wikiwordattrs", ("word", "key",
                         "value"), (word, key, value))
-                self.commitNeeded = True
             except (IOError, OSError, ValueError), e:
                 traceback.print_exc()
                 raise DbWriteAccessError(e)
             returnValue = True
         return returnValue
 
-    def updateAttributes(self, word, attrs):
-        self.deleteAttributes(word)
-        self.getExistingWikiWordInfo(word)
-        for k in attrs.keys():
-            values = attrs[k]
-            for v in values:
-                self._setAttribute(word, k, v)
-#                 if k == "alias":
-#                     self.setAsAlias(v)
-
-        self.cachedGlobalAttrs = None   # reset global attributes cache
-
-
-    def deleteAttributes(self, word):
-        try:
-            self.connWrap.execSql("delete from wikiwordattrs where word = ?",
-                    (word,))
-            self.commitNeeded = True
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    # TODO: 2.3: remove "property"-compatibility
-    getPropertyNames = getAttributeNames  
-    getPropertyNamesStartingWith = getAttributeNamesStartingWith
-    getGlobalProperties = getGlobalAttributes
-    getDistinctPropertyValues = getDistinctAttributeValues
-    getPropertyTriples = getAttributeTriples
-    getWordsForPropertyName = getWordsForAttributeName
-    getPropertiesForWord = getAttributesForWord
-    updateProperties = updateAttributes
-    deleteProperties = deleteAttributes
-
-
-    # ---------- Alias handling ----------
-
-    def getWikiPageNameForLinkTerm(self, alias):
-        """
-        Return real page name for wiki page link term which may be
-        a real page name or an alias. Returns None if term not found.
-        Function should only be called by WikiDocument as some methods
-        of unaliasing must be performed in WikiDocument.
-        Function must work for read-only wiki.
-        """
-        return self._getCachedWikiPageLinkTermDict().get(alias, None)
-
-
-    # TODO: 2.4: Remove compatibility definitions
-    getAllDefinedContentNames = getAllDefinedWikiPageNames
-    isDefinedWikiPage = isDefinedWikiPageName
-    refreshDefinedContentNames = refreshWikiPageLinkTerms
-    getUnAliasedWikiWord = getWikiPageNameForLinkTerm
-    isDefinedWikiLink = isDefinedWikiLinkTerm
-    getWikiWordsModifiedWithin = getWikiPageNamesModifiedWithin
-    getWikiWordsBefore = getWikiPageNamesBefore
-    getWikiWordsAfter = getWikiPageNamesAfter
-    getFirstWikiWord = getFirstWikiPageName
-    getNextWikiWord = getNextWikiPageName
-    getWikiWordsForMetaDataState = getWikiPageNamesForMetaDataState
-    validateFileSignatureForWord = validateFileSignatureForWikiPageName
-    refreshFileSignatureForWord = refreshFileSignatureForWikiPageName
-    def getWikiLinksStartingWith(self, thisStr, includeAliases=False,
-            caseNormed=False):
-        """
-        For compatibility. Use getWikiPageLinkTermsStartingWith() instead.
-        """
-        return self.getWikiPageLinkTermsStartingWith(thisStr, caseNormed)
-
 
     # ---------- Todo cache handling ----------
-
-    def getTodos(self):
-        """
-        Returns list of tuples (word, todoKey, todoValue).
-        """
-        try:
-#             return self.connWrap.execSqlQuery("select word, todo from todos")
-            return self.connWrap.execSqlQuery("select word, key, value from todos")
-        except (IOError, OSError, ValueError), e:
-
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-#     def getTodosForWord(self, word):
-#         """
-#         Returns list of all todo items of word
-#         """
-#         try:
-#             return self.connWrap.execSqlQuerySingleColumn("select todo from todos "
-#                     "where word = ?", (word,))
-#         except (IOError, OSError, ValueError), e:
-#             traceback.print_exc()
-#             raise DbReadAccessError(e)
-
-
-    def updateTodos(self, word, todos):
-        self.deleteTodos(word)
-        self.getExistingWikiWordInfo(word)
-        for t in todos:
-            self._addTodo(word, t)
-
 
     def _addTodo(self, word, todo):
         try:
             self.connWrap.execSqlInsert("todos", ("word", "key", "value"),
                     (word, todo[0], todo[1]))
-            self.commitNeeded = True
 
 #             self.execSql("insert into todos(word, todo) values (?, ?)", (word, todo))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-    def deleteTodos(self, word):
-        try:
-            self.connWrap.execSql("delete from todos where word = ?", (word,))
-            self.commitNeeded = True
         except (IOError, OSError, ValueError), e:
             traceback.print_exc()
             raise DbWriteAccessError(e)
@@ -1888,14 +890,6 @@ class WikiData:
         return result1 + result2
 
 
-    def updateWikiWordMatchTerms(self, word, wwmTerms, syncUpdate=False):
-        self.deleteWikiWordMatchTerms(word, syncUpdate=syncUpdate)
-        self.getExistingWikiWordInfo(word)
-        for t in wwmTerms:
-            assert t[2] == word
-            self._addWikiWordMatchTerm(t)
-            
-
     def _addWikiWordMatchTerm(self, wwmTerm):
         matchterm, typ, word, firstcharpos, charlength = wwmTerm
         try:
@@ -1903,7 +897,6 @@ class WikiData:
             self.connWrap.execSqlInsert("wikiwordmatchterms", ("matchterm",
                     "type", "word", "firstcharpos", "charlength"),
                     (matchterm, typ, word, firstcharpos, charlength))
-            self.commitNeeded = True
         except (IOError, OSError, ValueError), e:
             traceback.print_exc()
             raise DbWriteAccessError(e)
@@ -1931,7 +924,6 @@ class WikiData:
                                 "where matchterm = ? and type = ? and word = ? and "
                                 "firstcharpos = ?", term)
 
-            self.commitNeeded = True
         except (IOError, OSError, ValueError), e:
             traceback.print_exc()
             raise DbWriteAccessError(e)
@@ -1939,11 +931,6 @@ class WikiData:
 
     # ---------- Data block handling ----------
 
-#     def getDataBlockUnifNames(self):
-#         """
-#         Return unified names of all stored data blocks.
-#         """
-        
     def getDataBlockUnifNamesStartingWith(self, startingWith):
         """
         Return all unified names starting with startingWith (case sensitive)
@@ -1962,266 +949,6 @@ class WikiData:
                 [name for name in names2 if name.startswith(startingWith)]
 
 
-    def retrieveDataBlock(self, unifName, default=""):
-        """
-        Retrieve data block as binary string.
-        """
-        try:
-            datablock = self.connWrap.execSqlQuerySingleItem(
-                    "select data from datablocks where unifiedname = ?",
-                    (unifName,), strConv=False)
-            if datablock is not None:
-                return datablock
-            
-            filePath = self.connWrap.execSqlQuerySingleItem(
-                    "select filepath from datablocksexternal where unifiedname = ?",
-                    (unifName,))
-            
-            if filePath is None:
-                return None  # TODO exception?
-            
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        try:
-            datablock = loadEntireFile(join(self.dataDir, filePath))
-            return datablock
-
-        except (IOError, OSError, ValueError), e:
-            if self.wikiDocument.getWikiConfig().getboolean("main",
-                    "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-                return default
-            else:
-                traceback.print_exc()
-                raise DbReadAccessError(e)
-
-
-    def retrieveDataBlockAsText(self, unifName, default=""):
-        """
-        Retrieve data block as unicode string (assuming it was encoded properly)
-        and with normalized line-ending (Un*x-style).
-        """
-        datablock = self.retrieveDataBlock(unifName, default=default)
-        if datablock is None:
-            return None
-
-        return fileContentToUnicode(lineendToInternal(datablock))
-
-
-
-    def storeDataBlock(self, unifName, newdata, storeHint=None):
-        """
-        Store newdata under unified name. If previously data was stored under the
-        same name, it is deleted.
-        
-        unifName -- unistring. Unified name to store data under
-        newdata -- Data to store, either bytestring or unistring. The latter one
-            will be converted using utf-8 before storing and the file gets
-            the appropriate line-ending of the OS for external data blocks .
-        storeHint -- Hint if data should be stored intern in table or extern
-            in a file (using DATABLOCK_STOREHINT_* constants from Consts.py).
-        """
-        
-        if storeHint is None:
-            storeHint = Consts.DATABLOCK_STOREHINT_INTERN
-            
-        if storeHint == Consts.DATABLOCK_STOREHINT_INTERN:
-            try:
-                datablock = self.connWrap.execSqlQuerySingleItem(
-                        "select data from datablocks where unifiedname = ?",
-                        (unifName,), strConv=False)
-            except (IOError, OSError, ValueError), e:
-                traceback.print_exc()
-                raise DbReadAccessError(e)
-
-            try:
-                if datablock is not None:
-                    # It is in internal data blocks
-                    self.connWrap.execSql("update datablocks set data = ? where "
-                            "unifiedname = ?", (newdata, unifName))
-                    return
-                    
-                # It may be in external data blocks
-                self.deleteDataBlock(unifName)
-                
-                self.connWrap.execSqlInsert("datablocks", ("unifiedname",
-                        "data"), (unifName, newdata))
-                self.commitNeeded = True
-
-            except (IOError, OSError, ValueError), e:
-                traceback.print_exc()
-                raise DbWriteAccessError(e)
-
-        else:   # storeHint == Consts.DATABLOCK_STOREHINT_EXTERN
-            try:
-                filePath = self.connWrap.execSqlQuerySingleItem(
-                        "select filepath from datablocksexternal "
-                        "where unifiedname = ?", (unifName,))
-            except (IOError, OSError, ValueError), e:
-                traceback.print_exc()
-                raise DbReadAccessError(e)
-
-            try:
-                if filePath is not None:
-                    # The entry is already in an external file, so overwrite it
-                    writeEntireFile(join(self.dataDir, filePath), newdata,
-                            self.editorTextMode and isinstance(newdata, unicode))
-
-                    fileSig = self.wikiDocument.getFileSignatureBlock(
-                            join(self.dataDir, filePath))
-                    self.connWrap.execSql("update datablocksexternal "
-                            "set filesignature = ?", (fileSig,))
-                    self.commitNeeded = True
-                    return
-
-                asciiOnly = self.wikiDocument.getWikiConfig().getboolean("main",
-                        "wikiPageFiles_asciiOnly", False)
-
-                maxFnLength = self.wikiDocument.getWikiConfig().getint("main",
-                        "wikiPageFiles_maxNameLength", 120)
-
-                # Find unused filename
-                icf = iterCompatibleFilename(unifName, u".data",
-                        asciiOnly=asciiOnly, maxLength=maxFnLength)
-
-                for i in range(30):   # "while True" would be too dangerous
-                    fileName = icf.next()
-                    existing = self.connWrap.execSqlQuerySingleColumn(
-                            "select filenamelowercase "
-                            "from datablocksexternal where filenamelowercase = ?",
-                            (fileName.lower(),))
-                    if len(existing) > 0:
-                        continue
-                    if exists(longPathEnc(join(self.dataDir, fileName))):
-                        continue
-
-                    break
-                else:
-                    return None
-                
-                filePath = join(self.dataDir, fileName)
-                writeEntireFile(filePath, newdata,
-                        self.editorTextMode and isinstance(newdata, unicode))
-                fileSig = self.wikiDocument.getFileSignatureBlock(filePath)
-
-                # It may be in internal data blocks, so try to delete
-                self.deleteDataBlock(unifName)
-
-                self.connWrap.execSqlInsert("datablocksexternal",
-                        ("unifiedname", "filepath", "filenamelowercase",
-                        "filesignature"),
-                        (unifName, fileName, fileName.lower(), fileSig))
-                self.commitNeeded = True
-
-            except (IOError, OSError, ValueError), e:
-                traceback.print_exc()
-                raise DbWriteAccessError(e)
-
-
-    def guessDataBlockStoreHint(self, unifName):
-        """
-        Return a guess of the store hint used to store the block last time.
-        Returns one of the DATABLOCK_STOREHINT_* constants from Consts.py.
-        The function is allowed to return the wrong value (therefore a guess).
-        It returns None for non-existing data blocks.
-        """
-        try:
-            datablock = self.connWrap.execSqlQuerySingleItem(
-                    "select unifiedname from datablocks where unifiedname = ?",
-                    (unifName,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
-
-        if datablock is not None:
-            return Consts.DATABLOCK_STOREHINT_INTERN
-
-        try:
-            datablock = self.connWrap.execSqlQuerySingleItem(
-                    "select unifiedname from datablocksexternal where unifiedname = ?",
-                    (unifName,))
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-        if datablock is not None:
-            return Consts.DATABLOCK_STOREHINT_EXTERN
-
-        return None
-
-
-    def deleteDataBlock(self, unifName):
-        """
-        Delete data block with the associated unified name. If the unified name
-        is not in database, nothing happens.
-        """
-        try:
-            self.connWrap.execSql(
-                    "delete from datablocks where unifiedname = ?", (unifName,))
-            self.commitNeeded = True
-            
-            filePath = self.connWrap.execSqlQuerySingleItem(
-                    "select filepath from datablocksexternal "
-                    "where unifiedname = ?", (unifName,))
-
-            if filePath is not None:
-                try:
-                    # The entry is in an external file, so delete it
-                    os.unlink(longPathEnc(join(self.dataDir, filePath)))
-                except (IOError, OSError):
-                    if not self.wikiDocument.getWikiConfig().getboolean("main",
-                            "wikiPageFiles_gracefulOutsideAddAndRemove", True):
-                        raise
-
-                self.connWrap.execSql(
-                        "delete from datablocksexternal "
-                        "where unifiedname = ?", (unifName,))
-
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-
-
-    # ---------- Searching pages ----------
-
-    def search(self, sarOp, exclusionSet):
-        """
-        Search all wiki pages using the SearchAndReplaceOperation sarOp and
-        return set of all page names that match the search criteria.
-        sarOp.beginWikiSearch() must be called before calling this function,
-        sarOp.endWikiSearch() must be called after calling this function.
-        
-        exclusionSet -- set of wiki words for which their pages shouldn't be
-        searched here and which must not be part of the result set
-        """
-        result = set()
-
-        if sarOp.isTextNeededForTest():
-            for word in self.getAllDefinedWikiPageNames():
-                if word in exclusionSet:
-                    continue
-                try:
-                    fileContents = self.getContent(word)
-                except WikiFileNotFoundException:
-                    # some error in cache (should not happen)
-                    continue
-    
-                if sarOp.testWikiPage(word, fileContents) == True:
-                    result.add(word)
-        else:
-            for word in self.getAllDefinedWikiPageNames():
-                if word in exclusionSet:
-                    continue
-
-                if sarOp.testWikiPage(word, None) == True:
-                    result.add(word)
-
-        return result
-
-
 
     # ---------- Miscellaneous ----------
 
@@ -2229,26 +956,6 @@ class WikiData:
         "rebuild": 1,
         "filePerPage": 1   # Uses a single file per page
         }
-
-    def checkCapability(self, capkey):
-        """
-        Check the capabilities of this WikiData implementation.
-        The capkey names the capability, the function returns normally
-        a version number or None if not supported
-        """
-        return WikiData._CAPABILITIES.get(capkey, None)
-
-
-    def setEditorTextMode(self, mode):
-        """
-        If true, forces the editor to write platform dependent files to disk
-        (line endings as CR/LF, LF or CR).
-        If false, LF is used always.
-        
-        Must be implemented if checkCapability returns a version number
-        for "filePerPage".
-        """           
-        self.editorTextMode = mode
 
 
     def clearCacheTables(self):
@@ -2264,7 +971,6 @@ class WikiData:
             self.commit()
 
             DbStructure.recreateCacheTables(self.connWrap)
-            self.commitNeeded = True
             self.commit()
         except (IOError, OSError, ValueError), e:
             traceback.print_exc()
@@ -2274,40 +980,10 @@ class WikiData:
     def setDbSettingsValue(self, key, value):
         assert isinstance(value, basestring)
         DbStructure.setSettingsValue(self.connWrap, key, value)
-        self.commitNeeded = True
 
 
     def getDbSettingsValue(self, key, default=None):
         return DbStructure.getSettingsValue(self.connWrap, key, default)
-
-
-    def setPresentationBlock(self, word, datablock):
-        """
-        Save the presentation datablock (a byte string) for a word to
-        the database.
-        """
-        try:
-            self.connWrap.execSql(
-                    "update wikiwords set presentationdatablock = ? where "
-                    "word = ?", (datablock, word))
-            self.commitNeeded = True
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbWriteAccessError(e)
-
-
-    def getPresentationBlock(self, word):
-        """
-        Returns the presentation datablock (a byte string).
-        The function may return either an empty string or a valid datablock
-        """
-        try:
-            return self.connWrap.execSqlQuerySingleItem(
-                    "select presentationdatablock from wikiwords where word = ?",
-                    (word,), strConv=False)
-        except (IOError, OSError, ValueError), e:
-            traceback.print_exc()
-            raise DbReadAccessError(e)
 
 
     def testWrite(self):
@@ -2318,10 +994,6 @@ class WikiData:
         """
         pass
 
-
-    def close(self):
-        self.commit()
-        self.connWrap.close()
 
 
     # Not part of public API:
@@ -2338,16 +1010,6 @@ class WikiData:
 #         "utility method, executes the sql, returns query result"
 #         return self.connWrap.execSqlQuerySingleColumn(sql, params)
 
-    def commit(self):
-        if self.commitNeeded:
-            self.connWrap.commit()
-        
-        self.commitNeeded = False
-        
-    def rollback(self):
-        self.connWrap.rollback()
-        self.commitNeeded = False
-        
 
     # ---------- Other optional functionality ----------
 

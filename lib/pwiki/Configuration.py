@@ -982,9 +982,10 @@ WIKIDEFAULTS = {
 
     ("main", "wiki_icon"): u"",   # Name of the wiki icon. Empty if default icon should be used
 
-    ("main", "hotKey_showHide_byWiki"): u""   # System-wide hotkey to show/hide program. It is described
+    ("main", "hotKey_showHide_byWiki"): u"",   # System-wide hotkey to show/hide program. It is described
             # in the usual shortcut syntax e.g. "Ctrl-Alt-A".
             # This key is bound to the wiki. Another key above can be bound to the whole app
+    ("main", "caseInsensitiveWikiWords"): u"False"   # Makes WikiWords case insensitive (only works with sqlite backends currently)
     }
 
 

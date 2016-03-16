@@ -399,7 +399,10 @@ class WikiDataManager(MiscEventSourceMixin):
         self.wikiLangName = wikiLangName
         self.ensureWikiTempDir()
 
-        wikiData = wikiDataFactory(self, dataDir, self.getWikiTempDir())
+        # GetApp is only passed the first time we create the WikiData class
+        # as it is used to initilise some sqlite functions that only need
+        # to be done once
+        wikiData = wikiDataFactory(self, dataDir, self.getWikiTempDir(), GetApp())
 
         self.baseWikiData = wikiData
         self.autoLinkRelaxInfo = None
@@ -1019,12 +1022,12 @@ class WikiDataManager(MiscEventSourceMixin):
         return not self.getWikiPageNameForLinkTerm(wikiWord)
 
 
-#     def getNormcasedWikiWord(self, word):
-#         """
-#         Get normcased version of word. It isn't checked if word exists.
-#         Currently this function just calls word.lower().
-#         """
-#         return word.lower()
+    def getNormcasedWikiWord(self, word):
+        """
+        Get normcased version of word. It isn't checked if word exists.
+        Currently this function just calls word.lower().
+        """
+        return word.lower()
 
     def getAllDefinedWikiPageNames(self):
         """
@@ -1033,6 +1036,13 @@ class WikiDataManager(MiscEventSourceMixin):
         Function must work for read-only wiki.
         """
         return self.wikiData.getAllDefinedWikiPageNames()
+
+
+    def getAllDefinedWikiMatchTermsNormcase(self):
+        """
+
+        """
+        return self.wikiData.getAllDefinedWikiMatchTermsNormcase()
 
 
     def getWikiPage(self, wikiWord):
@@ -1104,7 +1114,7 @@ class WikiDataManager(MiscEventSourceMixin):
             if value is not None and isinstance(value, AliasWikiPage):
                 # Check if existing alias page is up to date
                 realWikiWord1 = value.getNonAliasPage().getWikiWord()
-                realWikiWord2 = self.getWikiPageNameForLinkTerm(wikiWord)
+                realWikiWord2 = self.wikiData.getWikiPageNameForLinkTerm(wikiWord)
                 
                 if realWikiWord1 != realWikiWord2:
                     # if not, retrieve new page
@@ -2110,7 +2120,7 @@ class WikiDataManager(MiscEventSourceMixin):
         returns word itself if word isn't an alias (may mean it's a real word
                 or doesn't exist!)
         """
-        result = self.getWikiPageNameForLinkTerm(word)
+        result = self.getWikiData().getWikiPageNameForLinkTerm(word)
 
         if result is None:
             return word
