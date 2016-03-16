@@ -3747,6 +3747,10 @@ class WikiTxtCtrl(SearchableScintillaControl):
                     # Decide if this is an image link
                     if appendixDict.has_key("l"):
                         urlAsImage = False
+                    # If we have an external link prevent its attemped render
+                    elif astNode.url.lower().startswith("http"):
+                        urlAsImage = False
+                        callTip = _(u"External (http) link")
                     elif appendixDict.has_key("i"):
                         urlAsImage = True
 #                     elif self.asHtmlPreview and \
@@ -3836,6 +3840,9 @@ class WikiTxtCtrl(SearchableScintillaControl):
 
     def OnDwellStart(self, evt):
         if self.dwellLockCounter > 0:
+            return
+        elif self.vi is not None and self.vi.KeyCommandInProgress():
+            # Otherwise calltips (etc..) will break a command input
             return
 
         wikiDocument = self.presenter.getWikiDocument()
@@ -4796,11 +4803,7 @@ class ViHandler(ViHelper):
     (k["\\"], k["s"]) : (0, (self.CreateShortHint, None), 2, 0), # \s
 
     (("Alt", k["g"]),)    : (0, (self.GoogleSelection, None), 1, 0), # <a-g>
-
-    (("Ctrl", k["w"]), k["l"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "right"), 0, 0), # <c-w>l
-    (("Ctrl", k["w"]), k["h"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "left"), 0, 0), # <c-w>l
-    (("Ctrl", k["w"]), k["j"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "below"), 0, 0), # <c-w>l
-    (("Ctrl", k["w"]), k["k"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "above"), 0, 0), # <c-w>l
+    (("Alt", k["e"]),)    : (0, (self.ctrl.evalScriptBlocks, None), 1, 0), # <a-e>
 
     (("Ctrl", k["w"]), k["l"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "right"), 0, 0), # <c-w>l
     (("Ctrl", k["w"]), k["h"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "left"), 0, 0), # <c-w>l
@@ -4895,7 +4898,7 @@ class ViHandler(ViHelper):
             })
         # And delete a few so our key mods are correct
         # These are keys that who do not serve the same function in visual mode
-        # as in normal mode (and it most cases are replaced by other function)
+        # as in normal mode (in most cases they are replaced by other function)
         del self.keys[2][(k["d"], k["d"])] # dd
         del self.keys[2][(k["y"], k["y"])] # yy
         del self.keys[2][(k["i"],)] # i
