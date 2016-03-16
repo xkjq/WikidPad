@@ -1762,9 +1762,20 @@ class WikiTxtCtrl(SearchableScintillaControl):
 
     def handleDropText(self, x, y, text):
         if x != -1:
-            # Real drop
-            self.DoDropText(x, y, text)
-            self.gotoCharPos(self.GetSelectionCharPos()[1], scroll=False)
+            # TODO: should probably make this optional
+            # If a internal link is droped activate it instead
+            if "internaljump/wikipage/" in text and \
+                    "\n" not in text and \
+                    " " not in text:
+                page = StringOps.flexibleUrlUnquote(text.split("internaljump/")[-1])
+                self.presenter.makeCurrent()
+
+                self.presenter.getMainControl().activatePageByUnifiedName(
+                        page)
+            else:
+                # Real drop
+                self.DoDropText(x, y, text)
+                self.gotoCharPos(self.GetSelectionCharPos()[1], scroll=False)
         else:
             self.ReplaceSelection(text)
 
