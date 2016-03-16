@@ -78,23 +78,26 @@ import wx
 #------------
 
 
-if wx.version() < "2.9":
+# Try importing gtk first (this should be better than trying to detect
+# wxPython version
+try:
     import gtk
-else:
+    import gobject
+    gobject.threads_init()    # If not you may get a lot of segfaults
+
+# If it fails then try gi
+except:
     import gi
     gi.require_version('Gtk', '3.0')
     from gi.repository import Gtk, Gdk
+    gtk = None
+
 
 from wxHelper import getTextFromClipboard
 
 from StringOps import strftimeUB, pathEnc, mbcsEnc, mbcsDec   # unescapeWithRe
 import DocPages
 
-
-if wx.version() < "2.9":
-    pass
-    #import gobject
-    #gobject.threads_init()    # TODO: is it really needed? Doesn't seem so.
 
 # gnome.program_init('glipper', '1.0', properties= { gnome.PARAM_APP_DATADIR : glipper.DATA_DIR })
 
@@ -337,7 +340,7 @@ class ClipboardCatchFakeIceptor(BaseFakeInterceptor):
             return
 
 
-        if wx.version() < "2.9":
+        if gtk is not None:
             self.gtkDefClipboard = gtk.clipboard_get()
         else:
             self.gtkDefClipboard = Gtk.Clipboard.get(Gdk.atom_intern('CLIPBOARD', True))
