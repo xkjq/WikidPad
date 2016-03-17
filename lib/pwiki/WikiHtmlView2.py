@@ -609,7 +609,7 @@ class WikiHtmlView2(wx.Panel):
                         href.startswith(u"rel://"):
 
                     appendToMenuByMenuDesc(menu,
-                            u"Open Containing Folder;"
+                            u"Open Containing Folder;",
                             u"CMD_OPEN_CONTAINING_FOLDER_THIS")
 
         appendToMenuByMenuDesc(menu, u"-")
@@ -1049,7 +1049,7 @@ if ((typeof jQuery !== 'undefined')) {
                 self.currentLoadedWikiWord = None
                 return  # TODO Do anything else here?
 
-            self.presenter.setTabProgressThreadSafe(0, threadstop)
+            #self.presenter.setTabProgressThreadSafe(0, threadstop)
             
             # Remove previously used temporary files
             self.exporterInstance.tempFileSet.clear()
@@ -1060,10 +1060,10 @@ if ((typeof jQuery !== 'undefined')) {
 
             self.exporterInstance.setLinkConverter(
                     LinkConverterForPreviewWk(self.presenter.getWikiDocument()))   # /?
-            
+
             threadstop.testValidThread()
 
-            self.presenter.setTabProgressThreadSafe(20, threadstop)
+            #self.presenter.setTabProgressThreadSafe(20, threadstop)
 
             html = self.exporterInstance.exportWikiPageToHtmlString(wikiPage)
 
@@ -1071,7 +1071,7 @@ if ((typeof jQuery !== 'undefined')) {
 
             wx.GetApp().getInsertionPluginManager().taskEnd()
 
-            self.presenter.setTabProgressThreadSafe(30, threadstop)
+            #self.presenter.setTabProgressThreadSafe(30, threadstop)
             
             if self.currentLoadedWikiWord == word and \
                     self.anchor is None:
@@ -1088,7 +1088,8 @@ if ((typeof jQuery !== 'undefined')) {
                 # NOTE: html2 seems to be threadsafe (on linux at least)
                 #       but this should probably be moved back to the main thread
                 #       just to be sure
-                callInMainThread(self.html.LoadURL,url)
+                #callInMainThread(self.html.LoadURL,url)
+                wx.CallAfter(self.html.LoadURL,url)
 
                 # If we are just reloading the page we can leave the scroll
                 # at its last position
@@ -1110,7 +1111,7 @@ if ((typeof jQuery !== 'undefined')) {
                     url += "#" + self.anchor
 
                 self.passNavigate += 1
-                callInMainThread(self.html.LoadURL,url)
+                wx.CallAfter(self.html.LoadURL,url)
                 self.lastAnchor = self.anchor
                 
                 #if self.anchor is None:
@@ -1123,7 +1124,8 @@ if ((typeof jQuery !== 'undefined')) {
         except NotCurrentThreadException:
             return
         finally:
-            self.presenter.setTabProgressThreadSafe(100, threadstop)
+            pass
+            #self.presenter.setTabProgressThreadSafe(100, threadstop)
 
 
     def postRefresh(self, anchor):

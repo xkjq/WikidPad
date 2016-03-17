@@ -679,6 +679,12 @@ class WikiHtmlViewWK(wx.Panel):
         """
         uri = flexibleUrlUnquote(request.get_uri())
 
+
+        if uri.endswith("PROXY/MOUSE_CLICK_EVENT"):
+            self.presenter.makeCurrent()
+            return True
+
+
         # iframes have a parent
         # let them load normally if set in options (otherwise they are 
         # opened by the external launcher as the page is loaded)
@@ -702,9 +708,8 @@ class WikiHtmlViewWK(wx.Panel):
             self.on_link = None
 
             # Prevent problem if we pass over 2 links quickly
-            if self.old_status.startswith(u"Link to page:"):
-                self.old_status = u""
-            self.updateStatus(self.old_status)
+            # This acts to remove the current status so a new one can be inserted
+            self.updateStatus(None)
         else:
             self.old_status = self.presenter.getMainControl().statusBar.GetStatusText()
             # flexibleUrlUnquote seems to fail on unicode links
@@ -735,6 +740,18 @@ class WikiHtmlViewWK(wx.Panel):
         """
         Called when page is loaded
         """
+
+        # As the html2 ctrl eats all mouse events we have to use a javascript
+        # hack to check when the ctrl gains focus
+        self.html.getWebkitWebView().execute_script("""
+
+        function onClick() {
+            window.location.href = "PROXY/MOUSE_CLICK_EVENT";
+            }
+
+        document.body.addEventListener('click', onClick, true); 
+        """)
+
 
         #Scroll to last position if no anchor
         if self.lastAnchor is None:
@@ -1007,6 +1024,7 @@ class WikiHtmlViewWK(wx.Panel):
 
             internaljumpPrefix = u"http://internaljump/"
 
+            wikiWord = None
             if status.startswith(internaljumpPrefix):
                 # First check for an anchor. In URLs, anchors are always
                 # separated by '#' regardless which character is used
@@ -1028,8 +1046,22 @@ class WikiHtmlViewWK(wx.Panel):
                 wikiWord = wikiDocument.getWikiPageNameForLinkTerm(
                         wikiWord[len(pagePrefix):])
 
-                if wikiWord is not None:
-                    status = _(u"Link to page: %s") % wikiWord
+
+            # Webkit uses the full url for links to anchors on the same page
+            elif status[len("file://"):].startswith(
+                    self.currentLoadedUrl[len("file:"):]):
+                wikiWord = self.currentLoadedWikiWord
+                try:
+                    anchor = status.split(u"#", 1)[1]
+                except ValueError:
+                    anchor = None
+    
+            if wikiWord is not None:
+                if anchor is not None:
+                    anchor = u"#{0}".format(anchor)
+                else:
+                    anchor = u""
+                status = _(u"Link to page: {0}{1}".format(wikiWord, anchor))
 
             self.presenter.getMainControl().statusBar.SetStatusText(
                     uniToGui(status), 0)
@@ -1606,6 +1638,9 @@ class WKHtmlWindow(wx.Window):
             self.ctrl.load_uri(url)
         except:
             self.ctrl.open(url)
+
+    def GetCurrentUri(self):
+        return self.ctrl.get_main_frame().get_uri()
 
 #     def HistoryBack(self):
 #         self.ctrl.go_back()
