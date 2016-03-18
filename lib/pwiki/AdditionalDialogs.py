@@ -689,12 +689,12 @@ class FindSimilarNamedWikiWordDialog(wx.Dialog, ModalDialogMixin):
         matchterm = self.similarWords[sel]
 
         answer = wx.MessageBox(
-                _("Do you want to add {0} as an alias to {1}?".format(matchterm,
+                _("Do you want to add {0} as an alias to {1}?".format(self.search_word,
                     word)), ("Add alias"), wx.YES_NO | wx.NO_DEFAULT, self)
 
         if answer == wx.YES:
             page = self.pWiki.getWikiDocument().getWikiPage(word)
-            page.addAttributeToPage("alias", self.search_word, 2)
+            page.addAttributeToPage(u"alias", self.search_word, 2)
 
         return
 

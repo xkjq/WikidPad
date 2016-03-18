@@ -2096,7 +2096,12 @@ class FileWikiData:
         moddate -- Modification date to store or None for current
         creadate -- Creation date to store or None for current        
         """
-        assert type(content) is unicode
+        # Why has this suddenly occured?
+        try:
+            assert type(content) is unicode
+        except:
+            content = unicode(content)
+
         try:
             self._updatePageEntry(word, moddate, creadate)
 
