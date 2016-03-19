@@ -1130,6 +1130,18 @@ class SqliteWikiData:
 
     # ---------- Handling of relationships cache ----------
 
+    def getAllRelations(self):
+        """
+        gets a list of all relations in the wikidb
+
+        returns a list of tuples
+            [ ( word, relation ), ( word2, relation2), ... ]
+
+        """
+        return self.connWrap.execSqlQuery(
+                "select word, relation from wikirelations")
+
+
     def getChildRelationships(self, wikiWord, existingonly=False,
             selfreference=True, withFields=()):
         """
