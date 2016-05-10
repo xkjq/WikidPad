@@ -2118,7 +2118,9 @@ class FileWikiData:
             self._updatePageEntry(word, moddate, creadate)
 
             filePath = self.getWikiWordFileName(word, mustExist=False)
-            writeEntireFile(filePath, content, self.editorTextMode)
+            writeEntireFile(filePath, content, self.editorTextMode,
+                    self.wikiDocument.getWikiConfig().getint("main",
+                        "wikiPageFiles_writeFileMode", 0))
 
             fileSig = self.wikiDocument.getFileSignatureBlock(filePath)
             self.connWrap.execSql("update wikiwords set filesignature = ?, "
@@ -2587,7 +2589,9 @@ class FileWikiData:
                 if filePath is not None:
                     # The entry is already in an external file, so overwrite it
                     writeEntireFile(join(self.dataDir, filePath), newdata,
-                            self.editorTextMode and isinstance(newdata, unicode))
+                            self.editorTextMode and isinstance(newdata, unicode),
+                            self.wikiDocument.getWikiConfig().getint("main",
+                                "wikiPageFiles_writeFileMode", 0))
 
                     fileSig = self.wikiDocument.getFileSignatureBlock(
                             join(self.dataDir, filePath))
@@ -2622,7 +2626,9 @@ class FileWikiData:
                 
                 filePath = join(self.dataDir, fileName)
                 writeEntireFile(filePath, newdata,
-                        self.editorTextMode and isinstance(newdata, unicode))
+                            self.editorTextMode and isinstance(newdata, unicode),
+                            self.wikiDocument.getWikiConfig().getint("main",
+                                "wikiPageFiles_writeFileMode", 0))
                 fileSig = self.wikiDocument.getFileSignatureBlock(filePath)
 
                 # It may be in internal data blocks, so try to delete

@@ -659,6 +659,8 @@ class OptionsDialog(wx.Dialog):
             ("wikiPageFiles_gracefulOutsideAddAndRemove",
                     "cbWikiPageFilesGracefulOutsideAddAndRemove", "b"),
 
+            ("wikiPageFiles_writeFileMode",
+                    "chWikiPageFilesWriteFileMode", "seli"),
 
             ("wiki_icon", "tfWikiIcon", "t"),
             ("hotKey_showHide_byWiki", "tfHotKeyShowHideByWiki", "t"),
@@ -697,9 +699,22 @@ class OptionsDialog(wx.Dialog):
                     "f0+"),
             ("editor_text_mode", "cbEditorForceTextMode", "b"),
     )
+    
+    # Sequence of control names only enabled for wiki data backends which create
+    # one file per page.
+    CONTROLS_FILE_PER_PAGE_WIKI = (
+            "cbWikiPageFilesAsciiOnly",
+            "tfWikiPageFilesMaxNameLength",
+            "cbWikiPageFilesGracefulOutsideAddAndRemove",
+            "chWikiPageFilesWriteFileMode",
+            "chTrashcanStorageLocation",
+            "chVersioningStorageLocation",
+            "cbEditorForceTextMode",
+    )
 
 
-    # Windows specific options
+
+    # Clipboard catcher specific options
     OPTION_TO_CONTROL_CLIPBOARD_CATCHER = (
             ("clipboardCatcher_prefix", "tfClipboardCatcherPrefix", "t"),
             ("clipboardCatcher_suffix", "tfClipboardCatcherSuffix", "t"),
@@ -979,16 +994,19 @@ class OptionsDialog(wx.Dialog):
 
             fppCap = wikiDocument.getWikiData().checkCapability("filePerPage")
 
-            self.ctrls.cbWikiPageFilesAsciiOnly.Enable(fppCap is not None)
-            self.ctrls.tfWikiPageFilesMaxNameLength.Enable(fppCap is not None)
-            self.ctrls.cbWikiPageFilesGracefulOutsideAddAndRemove.Enable(
-                    fppCap is not None)
-            self.ctrls.chTrashcanStorageLocation.Enable(
-                    fppCap is not None)
-            self.ctrls.chVersioningStorageLocation.Enable(
-                    fppCap is not None)
-            self.ctrls.cbEditorForceTextMode.Enable(
-                    fppCap is not None)
+            for c in self.CONTROLS_FILE_PER_PAGE_WIKI:
+                getattr(self.ctrls, c).Enable(fppCap is not None)
+
+#             self.ctrls.cbWikiPageFilesAsciiOnly.Enable(fppCap is not None)
+#             self.ctrls.tfWikiPageFilesMaxNameLength.Enable(fppCap is not None)
+#             self.ctrls.cbWikiPageFilesGracefulOutsideAddAndRemove.Enable(
+#                     fppCap is not None)
+#             self.ctrls.chTrashcanStorageLocation.Enable(
+#                     fppCap is not None)
+#             self.ctrls.chVersioningStorageLocation.Enable(
+#                     fppCap is not None)
+#             self.ctrls.cbEditorForceTextMode.Enable(
+#                     fppCap is not None)
 
         self.OnUpdateUiAfterChange(None)
 
