@@ -314,7 +314,10 @@ else:
         respectively are available on clipboard
         """
         cb = wx.TheClipboard
-        df = wx.CustomDataFormat("text/html")
+        if wx.version() > ("4.0.0"):
+            df = wx.DataFormat("text/html")
+        else:
+            df = wx.CustomDataFormat("text/html")
         avail = cb.IsSupported(df)
 
         return (avail, False)
@@ -857,7 +860,11 @@ def isDead(wxObj):
     """
     Check if C++ part of a wx-object is dead already
     """
-    return wxObj.__class__ is wx._core._wxPyDeadObject
+    if wx.version() > ("4.0.0"):
+        # In Phoenix this should work? test.
+        return not wxObj
+    else:
+        return wxObj.__class__ is wx._core._wxPyDeadObject
 
 
 class IconCache:
@@ -1177,9 +1184,13 @@ class ReorderableListBox(wx.ListBox):
     """
     def __init__(self, *args, **kwargs):
         if len(args) == 0 and len(kwargs) == 0:
-            f = wx.PreListBox()
-            self.PostCreate(f)
-            self.Bind(wx.EVT_WINDOW_CREATE, self.OnCreate)
+            if wx.version() > ("4.0.0"):
+                wx.ListBox.__init__(self, *args, **kwargs)
+            else:
+                f = wx.PreListBox()
+                self.PostCreate(f)
+
+                self.Bind(wx.EVT_WINDOW_CREATE, self.OnCreate)
         else:
             wx.ListBox.__init__(self, *args, **kwargs)
             wx.CallAfter(self.__PostInit)

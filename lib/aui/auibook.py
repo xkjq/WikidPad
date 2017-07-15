@@ -2522,15 +2522,28 @@ class TabFrame(wx.PyWindow):
         Used internally, do not call it in your code!
         """
 
-        pre = wx.PrePyWindow()
+        if wx.version() > ("4.0.0"):
+            pre = wx.Window.__init__(self)
 
-        self._tabs = None
-        self._rect = wx.Rect(0, 0, 200, 200)
-        self._tab_ctrl_height = 20
-        self._tab_rect = wx.Rect()
-        self._parent = parent
+            self._tabs = None
+            self._rect = wx.Rect(0, 0, 200, 200)
+            self._tab_ctrl_height = 20
+            self._tab_rect = wx.Rect()
+            self._parent = parent
 
-        self.PostCreate(pre)
+            self.Create(parent)
+            ## This hack should not be necessary
+            #self.Bind(wx.EVT_MOUSEWHEEL, self.PassEvent)
+        else:
+            pre = wx.PrePyWindow()
+
+            self._tabs = None
+            self._rect = wx.Rect(0, 0, 200, 200)
+            self._tab_ctrl_height = 20
+            self._tab_rect = wx.Rect()
+            self._parent = parent
+
+            self.PostCreate(pre)
 
 
     def SetTabCtrlHeight(self, h):

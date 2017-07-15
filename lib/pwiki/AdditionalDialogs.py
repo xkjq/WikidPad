@@ -40,16 +40,27 @@ class SelectWikiWordDialog(wx.Dialog, ModalDialogMixin):
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=wx.NO_3D):
 
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
 
-        self.pWiki = pWiki
-        self.wikiWord = None
-        self.listContent = []
-        self.ignoreTextChange = 0
-        
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, parent, "SelectWikiWordDialog")
+            self.pWiki = pWiki
+            self.wikiWord = None
+            self.listContent = []
+            self.ignoreTextChange = 0
+            
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, parent, "SelectWikiWordDialog")
+        else: 
+            d = wx.PreDialog()
+            self.PostCreate(d)
+
+            self.pWiki = pWiki
+            self.wikiWord = None
+            self.listContent = []
+            self.ignoreTextChange = 0
+            
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, parent, "SelectWikiWordDialog")
 
         if title is not None:
             self.SetTitle(title)
@@ -178,16 +189,28 @@ class OpenWikiWordDialog(wx.Dialog, ModalDialogMixin):
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=wx.NO_3D):
 
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
 
-        self.pWiki = pWiki
-        self.value = None
-        self.listContent = []
-        self.ignoreTextChange = 0
+            self.pWiki = pWiki
+            self.value = None
+            self.listContent = []
+            self.ignoreTextChange = 0
 
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, parent, "OpenWikiWordDialog")
+            res = wx.xrc.XmlResource.Get()
+
+            res.LoadDialog(self, parent, "OpenWikiWordDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
+
+            self.pWiki = pWiki
+            self.value = None
+            self.listContent = []
+            self.ignoreTextChange = 0
+
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, parent, "OpenWikiWordDialog")
 
         if title is not None:
             self.SetTitle(title)
@@ -481,12 +504,19 @@ class ChooseWikiWordDialog(wx.Dialog, ModalDialogMixin):
     """
     def __init__(self, pWiki, ID, words, motionType, title=None, default=None,
                  pos=wx.DefaultPosition, size=wx.DefaultSize):
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
+
+            self.pWiki = pWiki
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, self.pWiki, "ChooseWikiWordDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
         
-        self.pWiki = pWiki
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, self.pWiki, "ChooseWikiWordDialog")
+            self.pWiki = pWiki
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, self.pWiki, "ChooseWikiWordDialog")
         
         self.ctrls = XrcControls(self)
         
@@ -635,16 +665,27 @@ class RenameWikiWordDialog(wx.Dialog, ModalDialogMixin):
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=wx.NO_3D):
 
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
 
-        self.mainControl = mainControl
-        self.fromWikiWord = fromWikiWord
+            self.mainControl = mainControl
+            self.fromWikiWord = fromWikiWord
 
-        self.value = None
+            self.value = None
 
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, parent, "RenameWikiWordDialog")
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, parent, "RenameWikiWordDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
+
+            self.mainControl = mainControl
+            self.fromWikiWord = fromWikiWord
+
+            self.value = None
+
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, parent, "RenameWikiWordDialog")
 
         if title is not None:
             self.SetTitle(title)
@@ -930,13 +971,21 @@ class DateformatDialog(wx.Dialog):
         """
         deffmt -- Initial value for format string
         """
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
+
+            self.mainControl = mainControl
+            self.value = u""     
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, parent, "DateformatDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
         
-        self.mainControl = mainControl
-        self.value = u""     
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, parent, "DateformatDialog")
+            self.mainControl = mainControl
+            self.value = u""     
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, parent, "DateformatDialog")
 
         if title is not None:
             self.SetTitle(title)
@@ -1017,15 +1066,25 @@ class FontFaceDialog(wx.Dialog):
         value -- Current value of a text field containing a face name (used to
                  choose default item in the shown list box)
         """
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
 
-        self.parent = parent
-        self.mainControl = mainControl
-        self.value = value
+            self.parent = parent
+            self.mainControl = mainControl
+            self.value = value
 
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, self.parent, "FontFaceDialog")
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, self.parent, "FontFaceDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
+
+            self.parent = parent
+            self.mainControl = mainControl
+            self.value = value
+
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, self.parent, "FontFaceDialog")
 
         self.ctrls = XrcControls(self)
 
@@ -1082,18 +1141,31 @@ class ExportDialog(wx.Dialog, ModalDialogMixin):
         from . import Exporters
         from .SearchAndReplace import SearchReplaceOperation
 
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
         
-        self.mainControl = mainControl
-        self.value = None
+            self.mainControl = mainControl
+            self.value = None
+            
+            self.listPagesOperation = SearchReplaceOperation()
+            self.continuousExport = continuousExport
+            self.savedExports = None
+            
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, self.mainControl, "ExportDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
         
-        self.listPagesOperation = SearchReplaceOperation()
-        self.continuousExport = continuousExport
-        self.savedExports = None
-        
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, self.mainControl, "ExportDialog")
+            self.mainControl = mainControl
+            self.value = None
+            
+            self.listPagesOperation = SearchReplaceOperation()
+            self.continuousExport = continuousExport
+            self.savedExports = None
+            
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, self.mainControl, "ExportDialog")
 
         self.ctrls = XrcControls(self)
 
@@ -1589,14 +1661,23 @@ class ImportDialog(wx.Dialog):
                  pos=wx.DefaultPosition, size=wx.DefaultSize):
         from . import Importers
 
-        d = wx.PreDialog()
-        self.PostCreate(d)
-        
-        self.parent = parent
-        self.mainControl = mainControl
-        
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, self.parent, "ImportDialog")
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
+            
+            self.parent = parent
+            self.mainControl = mainControl
+            
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, self.parent, "ImportDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
+            
+            self.parent = parent
+            self.mainControl = mainControl
+            
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, self.parent, "ImportDialog")
 
         self.ctrls = XrcControls(self)
 
@@ -1790,14 +1871,23 @@ class NewWikiSettings(wx.Dialog, ModalDialogMixin):
     def __init__(self, parent, ID, mainControl, defDbHandler=None,
             defWikiLang=None, title="", pos=wx.DefaultPosition,
             size=wx.DefaultSize):
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
 
-        self.mainControl = mainControl
-        self.value = None, None, None
+            self.mainControl = mainControl
+            self.value = None, None, None
 
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, parent, "NewWikiSettingsDialog")
+            res = wx.xrc.XmlResource.Get()
+            res.LoadDialog(self, parent, "NewWikiSettingsDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
+
+            self.mainControl = mainControl
+            self.value = None, None, None
+
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnDialog(self, parent, "NewWikiSettingsDialog")
 
         self.ctrls = XrcControls(self)
 

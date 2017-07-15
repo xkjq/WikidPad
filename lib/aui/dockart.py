@@ -150,7 +150,11 @@ class AuiDefaultDockArt(object):
             self._caption_font = wx.Font(8, wx.DEFAULT, wx.NORMAL, wx.NORMAL, False)
 
         self.SetDefaultPaneBitmaps(isMac)
-        self._restore_bitmap = wx.BitmapFromXPMData(restore_xpm)
+
+        if wx.version() > ("4.0.0"):
+            self._restore_bitmap = wx.Bitmap(restore_xpm)
+        else:
+            self._restore_bitmap = wx.BitmapFromXPMData(restore_xpm)
 
         # default metric values
         self._sash_size = 4

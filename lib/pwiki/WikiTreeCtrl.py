@@ -1727,7 +1727,10 @@ class WikiTreeCtrl(customtreectrl.CustomTreeCtrl):          # wxTreeCtrl):
 
         self.SetBackgroundColour(wx.Colour(*coltuple))
 
-        font = wx.SystemSettings_GetFont(wx.SYS_DEFAULT_GUI_FONT)
+        if wx.version() > ("4.0.0"):
+            font = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
+        else:
+            font = wx.SystemSettings_GetFont(wx.SYS_DEFAULT_GUI_FONT)
         # wx.Font()    # 1, wx.FONTFAMILY_DEFAULT, 
         font.SetNativeFontInfoUserDesc(config.get(
                 "main", "tree_font_nativeDesc", u""))

@@ -73,7 +73,10 @@ def StepColour(c, ialpha):
     g = BlendColour(g, bg, alpha)
     b = BlendColour(b, bg, alpha)
 
-    return wx.Colour(r, g, b)
+    if wx.version() > ("4.0.0"):
+        return wx.Colour(int(r), int(g), int(b))
+    else:
+        return wx.Colour(r, g, b)
 
 
 def LightContrastColour(c):
@@ -104,7 +107,10 @@ def ChopText(dc, text, max_size):
     """
     
     # first check if the text fits with no problems
-    x, y, dummy = dc.GetMultiLineTextExtent(text)
+    if wx.version() > ("4.0.0"):
+        x, y, dummy = dc.GetFullMultiLineTextExtent(text)
+    else:
+        x, y, dummy = dc.GetMultiLineTextExtent(text)
     
     if x <= max_size:
         return text
@@ -137,11 +143,18 @@ def BitmapFromBits(bits, w, h, colour):
      raw bitmap.
     """
 
-    img = wx.BitmapFromBits(bits, w, h).ConvertToImage()
-    img.Replace(0, 0, 0, 123, 123, 123)
-    img.Replace(255, 255, 255, colour.Red(), colour.Green(), colour.Blue())
-    img.SetMaskColour(123, 123, 123)
-    return wx.BitmapFromImage(img)
+    if wx.version() > ("4.0.0"):
+        img = wx.Bitmap(bits, w, h).ConvertToImage()
+        img.Replace(0, 0, 0, 123, 123, 123)
+        img.Replace(255, 255, 255, colour.Red(), colour.Green(), colour.Blue())
+        img.SetMaskColour(123, 123, 123)
+        return wx.Bitmap(img)
+    else:
+        img = wx.BitmapFromBits(bits, w, h).ConvertToImage()
+        img.Replace(0, 0, 0, 123, 123, 123)
+        img.Replace(255, 255, 255, colour.Red(), colour.Green(), colour.Blue())
+        img.SetMaskColour(123, 123, 123)
+        return wx.BitmapFromImage(img)
 
 
 def IndentPressedBitmap(rect, button_state):

@@ -5609,7 +5609,7 @@ class AuiManager(wx.EvtHandler):
         :param bool `spacer_only`: whether to add a simple spacer or a real window.
         """
 
-        sizer_item = wx.SizerItem()
+        #sizer_item = wx.SizerItem()
         caption_size = self._art.GetMetric(AUI_DOCKART_CAPTION_SIZE)
         gripper_size = self._art.GetMetric(AUI_DOCKART_GRIPPER_SIZE)
         pane_border_size = self._art.GetMetric(AUI_DOCKART_PANE_BORDER_SIZE)
@@ -5797,7 +5797,7 @@ class AuiManager(wx.EvtHandler):
         :param bool `spacer_only`: whether to add a simple spacer or a real window.
         """
 
-        sizer_item = wx.SizerItem()
+        #sizer_item = wx.SizerItem()
         part = AuiDockUIPart()
 
         sash_size = self._art.GetMetric(AUI_DOCKART_SASH_SIZE)

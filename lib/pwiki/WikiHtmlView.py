@@ -30,7 +30,7 @@ from . import PluginManager
 # Try and load the html2 webview renderer
 try:
     WikiHtmlViewWK = None
-    if wx.version().startswith(("2.9", "3")):
+    if wx.version().startswith(("2.9", "3", "4")):
         import WikiHtmlView2
     else:
         WikiHtmlView2 = None
@@ -432,12 +432,17 @@ class WikiHtmlView(wx.html.HtmlWindow):
 
     def OnLeftDClick(self, evt):
         pos = self.CalcUnscrolledPosition(evt.GetPosition())
-        cell = self.GetInternalRepresentation().FindCellByPos(pos.x, pos.y)
-        if cell is not None:
-            linkInfo = cell.GetLink()
-            if linkInfo is not None:
-                evt.Skip()
-                return
+
+        if wx.version() > ("4.0.0"):
+            # TODO: broken in phoenix
+            pass
+        else:
+            cell = self.GetInternalRepresentation().FindCellByPos(pos.x, pos.y)
+            if cell is not None:
+                linkInfo = cell.GetLink()
+                if linkInfo is not None:
+                    evt.Skip()
+                    return
                 
         pres = self.presenter
         mc = pres.getMainControl()
@@ -453,21 +458,25 @@ class WikiHtmlView(wx.html.HtmlWindow):
         
     def OnMiddleDown(self, evt):
         pos = self.CalcUnscrolledPosition(evt.GetPosition())
-        cell = self.GetInternalRepresentation().FindCellByPos(pos.x, pos.y)
-        if cell is not None:
-            linkInfo = cell.GetLink()
-            if linkInfo is not None:
-                if not evt.ControlDown():
-                    middleConfig = self.presenter.getConfig().getint("main",
-                            "mouse_middleButton_withoutCtrl", 2)
-                else:
-                    middleConfig = self.presenter.getConfig().getint("main",
-                            "mouse_middleButton_withCtrl", 3)
+        if wx.version() > ("4.0.0"):
+            # TODO: broken in phoenix
+            pass
+        else:
+            cell = self.GetInternalRepresentation().FindCellByPos(pos.x, pos.y)
+            if cell is not None:
+                linkInfo = cell.GetLink()
+                if linkInfo is not None:
+                    if not evt.ControlDown():
+                        middleConfig = self.presenter.getConfig().getint("main",
+                                "mouse_middleButton_withoutCtrl", 2)
+                    else:
+                        middleConfig = self.presenter.getConfig().getint("main",
+                                "mouse_middleButton_withCtrl", 3)
 
-                tabMode = MIDDLE_MOUSE_CONFIG_TO_TABMODE[middleConfig]
+                    tabMode = MIDDLE_MOUSE_CONFIG_TO_TABMODE[middleConfig]
 
-                self._activateLink(cell.GetLink().GetHref(), tabMode=tabMode)
-                return
+                    self._activateLink(cell.GetLink().GetHref(), tabMode=tabMode)
+                    return
 
         evt.Skip()
 
@@ -674,7 +683,12 @@ class WikiHtmlView(wx.html.HtmlWindow):
         if irep is None:
             cell = None
         else:
-            cell = irep.FindCellByPos(pos.x, pos.y)
+            if wx.version() > ("4.0.0"):
+                # TODO: broken in phoenix
+                #cell = irep.FindCellByPos(pos.x, pos.y)
+                cell = None
+            else:
+                cell = irep.FindCellByPos(pos.x, pos.y)
         callTip = u""
         status = u""
 

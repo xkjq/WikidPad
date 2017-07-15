@@ -11,6 +11,11 @@ import ExceptionLogger
 
 import wx, wx.xrc
 
+if wx.version() > ("4.0.0"):
+    import wx.adv
+    wx.SplashScreen = wx.adv.SplashScreen
+    wx.SPLASH_CENTRE_ON_SCREEN = wx.adv.SPLASH_CENTRE_ON_SCREEN  
+    wx.SPLASH_TIMEOUT = wx.adv.SPLASH_TIMEOUT
 # import srePersistent
 # srePersistent.loadCodeCache()
 
@@ -570,7 +575,10 @@ class App(wx.App, MiscEventSourceMixin):
                     
             oldObj = evt.GetEventObject()
 
-            scPos = evt.GetEventObject().ClientToScreen(evt.GetPositionTuple())
+            if wx.version() > ("4.0.0"):
+                scPos = evt.GetEventObject().ClientToScreen(evt.GetPosition())
+            else:
+                scPos = evt.GetEventObject().ClientToScreen(evt.GetPositionTuple())
             wnd = wx.FindWindowAtPoint(scPos)
             if wnd is not None and wnd is not oldObj:
 #                 newPos = wnd.ScreenToClient(scPos)

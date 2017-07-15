@@ -16,6 +16,10 @@ from wxHelper import * # Needed for  XrcControls
 
 from WindowLayout import setWindowSize
 
+
+if wx.version() > ("4.0.0"):
+    wx.HtmlListBox = wx.html.HtmlListBox
+
 #TODO:  Multiple registers
 #       Page marks
 #       Alt-combinations

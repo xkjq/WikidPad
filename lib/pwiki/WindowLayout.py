@@ -2,6 +2,31 @@ import traceback
 
 import wx
 
+if wx.version() > ("4.0.0"):
+    # In phoenix much of module namespace has been reorganised
+    # NOTE: it would probably make more sense to do this the other way round
+    import wx.adv
+
+    wx.SashLayoutWindow = wx.adv.SashLayoutWindow
+    wx.LayoutAlgorithm = wx.adv.LayoutAlgorithm
+
+    wx.LAYOUT_BOTTOM            = wx.adv.LAYOUT_BOTTOM
+    wx.LAYOUT_HORIZONTAL        = wx.adv.LAYOUT_HORIZONTAL
+    wx.LAYOUT_LEFT              = wx.adv.LAYOUT_LEFT
+    wx.LAYOUT_NONE              = wx.adv.LAYOUT_NONE
+    wx.LAYOUT_RIGHT             = wx.adv.LAYOUT_RIGHT
+    wx.LAYOUT_TOP               = wx.adv.LAYOUT_TOP
+    wx.LAYOUT_VERTICAL          = wx.adv.LAYOUT_VERTICAL
+    wx.SASH_BOTTOM              = wx.adv.SASH_BOTTOM
+    wx.SASH_LEFT                = wx.adv.SASH_LEFT
+    wx.SASH_NONE                = wx.adv.SASH_NONE
+    wx.SASH_RIGHT               = wx.adv.SASH_RIGHT
+    wx.SASH_STATUS_OK           = wx.adv.SASH_STATUS_OK
+    wx.SASH_STATUS_OUT_OF_RANGE = wx.adv.SASH_STATUS_OUT_OF_RANGE
+    wx.SASH_TOP                 = wx.adv.SASH_TOP
+    wx.SW_3DSASH                = wx.adv.SW_3DSASH
+    wx.EVT_SASH_DRAGGED         = wx.adv.EVT_SASH_DRAGGED
+
 from .MiscEvent import MiscEventSourceMixin
 from .StringOps import escapeForIni, unescapeForIni
 
@@ -292,11 +317,17 @@ class SmartSashLayoutWindow(wx.SashLayoutWindow):
         if isinstance(parent, SmartSashLayoutWindow):
             ws = parent.layoutWorkSize
             if ws is None:
-                cwidth, cheight = parent.GetClientSizeTuple()
+                if wx.version() > ("4.0.0"):
+                    cwidth, cheight = parent.GetClientSize()
+                else:
+                    cwidth, cheight = parent.GetClientSizeTuple()
             else:
                 cwidth, cheight = ws
         else:
-            cwidth, cheight = parent.GetClientSizeTuple()
+            if wx.version() > ("4.0.0"):
+                cwidth, cheight = parent.GetClientSize()
+            else:
+                cwidth, cheight = parent.GetClientSizeTuple()
 
         if self.GetOrientation() == wx.LAYOUT_VERTICAL:
             if cwidth > 10:

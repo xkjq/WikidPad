@@ -433,9 +433,13 @@ class WikiHtmlView2(wx.Panel):
         self.passNavigate = 0
         
         # Set zoom factor
-        zoom = self.presenter.getConfig().getint("main", "preview_zoom", 0)
-        zoomFact = max(0.1, zoom * 0.1 + 1.0)
-        self.html.SetZoom(zoomFact)
+        if wx.version() > ("4.0.0"):
+            #broken in phoenix 
+            pass
+        else:
+            zoom = self.presenter.getConfig().getint("main", "preview_zoom", 0)
+            zoomFact = max(0.1, zoom * 0.1 + 1.0)
+            self.html.SetZoom(zoomFact)
 
         self.jquery = False
 

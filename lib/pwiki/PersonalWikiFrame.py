@@ -13,6 +13,10 @@ import cPickle  # to create dependency?
 
 import wx, wx.html
 
+if wx.version() > ("4.0.0"):
+    import wx.adv
+    wx.TaskBarIcon = wx.adv.TaskBarIcon
+
 # import urllib_red as urllib
 # import urllib
 
@@ -2285,7 +2289,11 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
         self.statusBar.SetFieldsCount(3)
         
         self.statusBarTimer = wx.Timer(self)
-        wx.EVT_TIMER(self, self.statusBarTimer.GetId(), self.OnStatusBarTimer)
+
+        if wx.version() > ("4.0.0"):
+            self.statusBarTimer.Bind(wx.EVT_TIMER, self.OnStatusBarTimer)
+        else:
+            wx.EVT_TIMER(self, self.statusBarTimer.GetId(), self.OnStatusBarTimer)
 
         # Measure necessary widths of status fields
         dc = wx.ClientDC(self.statusBar)

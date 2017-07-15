@@ -40,12 +40,18 @@ class ResourceOptionsPanel(DefaultOptionsPanel):
     GUI of panel is defined by a ressource.
     """
     def __init__(self, parent, resName):
-        p = wx.PrePanel()
-        self.PostCreate(p)
+        if wx.version() > ("4.0.0"):
+            wx.Panel.__init__(self)
+            res = wx.xrc.XmlResource.Get()
+            
+            res.LoadPanel(self, parent, resName)
+        else:
+            p = wx.PrePanel()
+            self.PostCreate(p)
 #         self.optionsDlg = optionsDlg
-        res = wx.xrc.XmlResource.Get()
+            res = wx.xrc.XmlResource.Get()
 
-        res.LoadOnPanel(self, parent, resName)
+            res.LoadOnPanel(self, parent, resName)
 
     def setVisible(self, vis):
         return True
@@ -357,6 +363,8 @@ class OptionsDialog(wx.Dialog):
     #     ttdf: time/date format
     #     f0+: nonegative float
     #     seli: integer position of a selection in dropdown list
+    #     selidyn: integer position of a selection in dropdown list (compatable
+    #               with phoenix / python 3)
     #     selt: Chosen text in dropdown list
     #     color0: HTML color code or empty
     #     spin: Numeric SpinCtrl
@@ -368,6 +376,9 @@ class OptionsDialog(wx.Dialog):
     #     of the "..." button to call for a dialog to set.
     # selt entries have a list with the internal config names (unicode) of the
     #     possible choices as 4th item.
+    
+    # NOTE: selidyn came about because I couldn't get seli to be compatable with
+    # wxPython phoenix or python 3
 
     _lastShownPanelName = None
 
@@ -377,6 +388,7 @@ class OptionsDialog(wx.Dialog):
             ("single_process", "cbSingleProcess", "b"),
             ("zombieCheck", "cbZombieCheck", "b"),
 
+            # TODO: check if selt is really required here
             ("cpu_affinity", "chCpuAffinity", "selt",
                 [u"-1"]),
             
@@ -458,7 +470,7 @@ class OptionsDialog(wx.Dialog):
             ("html_export_singlePage_sepLineCount",
                     "tfHtmlExportSinglePageSepLineCount", "i0+"),
 
-            ("html_preview_renderer", "chHtmlPreviewRenderer", "seli"),
+            ("html_preview_renderer", "chHtmlPreviewRenderer", "selidyn"),
             ("html_preview_ieShowIframes", "cbHtmlPreviewIeShowIframes", "b"),
             ("html_preview_webkitViKeys", "cbHtmlPreviewWebkitViKeys", "b"),
 
@@ -769,18 +781,31 @@ class OptionsDialog(wx.Dialog):
     def __init__(self, pWiki, ID, startPanelName=None, title="Options",
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=wx.NO_3D):
-        d = wx.PreDialog()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Dialog.__init__(self)
 
-        self.pWiki = pWiki
-        self.oldSettings = {}
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnDialog(self, self.pWiki, "OptionsDialog")
+            self.pWiki = pWiki
+            self.oldSettings = {}
+            res = wx.xrc.XmlResource.Get()
+
+            res.LoadDialog(self, self.pWiki, "OptionsDialog")
+        else:
+            d = wx.PreDialog()
+            self.PostCreate(d)
+            
+            self.pWiki = pWiki
+            self.oldSettings = {}
+            res = wx.xrc.XmlResource.Get()
+
+            res.LoadOnDialog(self, self.pWiki, "OptionsDialog")
 
         self.combinedOptionToControl = self.OPTION_TO_CONTROL_GLOBAL
 
         if self.pWiki.isWikiLoaded():
             self.combinedOptionToControl += self.OPTION_TO_CONTROL_WIKI
+
+        # Needed to replace optionsDialog_clientData
+        self.optionsDialogDynamicClientData = {}
 
         # Hold own copy, it may need modification
         self.combinedPanelList = wx.GetApp().getOptionsDlgPanelList()[:]
@@ -868,35 +893,100 @@ class OptionsDialog(wx.Dialog):
         # Special options to be prepared before transferring to dialog
         
         # HTML renderer (OS specific)
-        self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData = [0]
-        if WikiHtmlView.WikiHtmlViewIE is not None:
-            self.ctrls.chHtmlPreviewRenderer.Append(_(u"IE"))
-            self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(1)
-            self.ctrls.chHtmlPreviewRenderer.Append(_(u"Mozilla"))
-            self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(2)
 
+        # When testing for my previous python 3 / phoenix port I could not get
+        # optionsDialog_clientData to work, so I rewrote in the following style
+        self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"] = [0]
+
+        if WikiHtmlView.WikiHtmlViewIE is not None:
+            self.ctrls.chHtmlPreviewRenderer.Append(_("IE"))
+            self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(1)
+            self.ctrls.chHtmlPreviewRenderer.Append(_("Mozilla"))
+            self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(2)
+        
         if WikiHtmlView.WikiHtmlViewWK is not None:
-            self.ctrls.chHtmlPreviewRenderer.Append(_(u"Webkit"))
-            self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(3)
+            self.ctrls.chHtmlPreviewRenderer.Append(_("Webkit"))
+            self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(3)
 
         if WikiHtmlView.WikiHtmlView2 is not None:
-            self.ctrls.chHtmlPreviewRenderer.Append(_(u"Webview"))
-            self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(4)
+            self.ctrls.chHtmlPreviewRenderer.Append(_("Webview"))
+            self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(4)
 
         self.ctrls.chHtmlPreviewRenderer.Enable(
-                len(self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData) > 1)
-        
+                len(self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"]) > 1)
+
         # CPU affinity
-        
-        self.ctrls.chCpuAffinity.optionsDialog_clientData = [-1]
-        
+        self.optionsDialogDynamicClientData["chCpuAffinity"] = [-1]
+
         if OsAbstract.getCpuCount() > 1:
-            self.ctrls.chCpuAffinity.optionsDialog_clientData += range(
+            self.optionsDialogDynamicClientData["chCpuAffinity"] += range(
                     OsAbstract.getCpuCount())
             for i in range(OsAbstract.getCpuCount()):
                 self.ctrls.chCpuAffinity.Append(unicode(i))
         else:
             self.ctrls.chCpuAffinity.Enable(False)
+        #if wx.version() > ("4.0.0"):
+
+        #    self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"] = [0]
+
+        #    if WikiHtmlView.WikiHtmlViewIE is not None:
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_("IE"))
+        #        self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(1)
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_("Mozilla"))
+        #        self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(2)
+        #    
+        #    if WikiHtmlView.WikiHtmlViewWK is not None:
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_("Webkit"))
+        #        self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(3)
+
+        #    if WikiHtmlView.WikiHtmlView2 is not None:
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_("Webview"))
+        #        self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"].append(4)
+
+        #    self.ctrls.chHtmlPreviewRenderer.Enable(
+        #            len(self.optionsDialogDynamicClientData["chHtmlPreviewRenderer"]) > 1)
+
+        #    # CPU affinity
+        #    self.optionsDialogDynamicClientData["chCpuAffinity"] = [-1]
+
+        #    if OsAbstract.getCpuCount() > 1:
+        #        self.optionsDialogDynamicClientData["chCpuAffinity"] += range(
+        #                OsAbstract.getCpuCount())
+        #        for i in range(OsAbstract.getCpuCount()):
+        #            self.ctrls.chCpuAffinity.Append(unicode(i))
+        #    else:
+        #        self.ctrls.chCpuAffinity.Enable(False)
+
+        #else:
+        #    self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData = [0]
+        #    if WikiHtmlView.WikiHtmlViewIE is not None:
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_(u"IE"))
+        #        self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(1)
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_(u"Mozilla"))
+        #        self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(2)
+
+        #    if WikiHtmlView.WikiHtmlViewWK is not None:
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_(u"Webkit"))
+        #        self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(3)
+
+        #    if WikiHtmlView.WikiHtmlView2 is not None:
+        #        self.ctrls.chHtmlPreviewRenderer.Append(_(u"Webview"))
+        #        self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData.append(4)
+
+        #    self.ctrls.chHtmlPreviewRenderer.Enable(
+        #            len(self.ctrls.chHtmlPreviewRenderer.optionsDialog_clientData) > 1)
+        #
+        #    # CPU affinity
+        #
+        #    self.ctrls.chCpuAffinity.optionsDialog_clientData = [-1]
+        #
+        #    if OsAbstract.getCpuCount() > 1:
+        #        self.ctrls.chCpuAffinity.optionsDialog_clientData += range(
+        #                OsAbstract.getCpuCount())
+        #        for i in range(OsAbstract.getCpuCount()):
+        #            self.ctrls.chCpuAffinity.Append(unicode(i))
+        #    else:
+        #        self.ctrls.chCpuAffinity.Enable(False)
                 
         # Reorderable paste type list
         
@@ -947,12 +1037,14 @@ class OptionsDialog(wx.Dialog):
                         "main", o))) )
             elif t == "seli":   # Selection -> transfer index
                 sel = self.pWiki.getConfig().getint("main", o)
-                if hasattr(self.ctrls[c], "optionsDialog_clientData"):
-                    # There is client data to take instead of real selection
-                    try:
-                        sel = self.ctrls[c].optionsDialog_clientData.index(sel)
-                    except (IndexError, ValueError):
-                        sel = 0
+                self.ctrls[c].SetSelection(sel)
+            elif t == "selidyn":   # Selection with dynamic data
+                sel = self.pWiki.getConfig().getint("main", o)
+                try:
+                    #sel = self.optionsDialogDynamicClientData[c][sel]
+                    sel = self.optionsDialogDynamicClientData[c].index(sel)
+                except (KeyError):
+                    sel = 0
                 self.ctrls[c].SetSelection(sel)
             elif t == "selt":   # Selection -> transfer content string
                 try:
@@ -1234,9 +1326,10 @@ class OptionsDialog(wx.Dialog):
                         escapeForIni(self.ctrls[c].GetValue(), toEscape=u" ")) )
             elif t == "seli":   # Selection -> transfer index
                 sel = self.ctrls[c].GetSelection()
-                if hasattr(self.ctrls[c], "optionsDialog_clientData"):
-                    # There is client data to take instead of real selection
-                    sel = self.ctrls[c].optionsDialog_clientData[sel]
+                config.set("main", o, str(sel))
+            elif t == "selidyn":   # Selection with dynamic data
+                sel = self.ctrls[c].GetSelection()
+                sel = self.optionsDialogDynamicClientData[c][sel]
                 config.set("main", o, unicode(sel))
             elif t == "selt":   # Selection -> transfer content string
                 try:

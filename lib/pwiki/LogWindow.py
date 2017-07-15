@@ -70,22 +70,41 @@ class LogMessage:
 
 class LogWindow(wx.Panel):
     def __init__(self, parent, id, mainControl):
-        d = wx.PrePanel()
-        self.PostCreate(d)
+        if wx.version() > ("4.0.0"):
+            wx.Panel.__init__(self)
 
-        self.mainControl = mainControl
-        res = wx.xrc.XmlResource.Get()
-        res.LoadOnPanel(self, parent, "LogWindow")
-        self.ctrls = XrcControls(self)
-        self.ctrls.lcEntries.InsertColumn(0, _(u"Message"))
+            self.mainControl = mainControl
+            res = wx.xrc.XmlResource.Get()
+            res.LoadPanel(self, parent, "LogWindow")
+            self.ctrls = XrcControls(self)
+            self.ctrls.lcEntries.InsertColumn(0, _("Message"))
 
-        self.messages = []
-        self.sizeVisible = True
-        
-        wx.EVT_LIST_ITEM_ACTIVATED(self, GUI_ID.lcEntries, self.OnEntryActivated) 
-        wx.EVT_BUTTON(self, GUI_ID.btnClearLog, self.OnClearLog)
-        wx.EVT_BUTTON(self, GUI_ID.btnHideLogWindow, self.OnHideLogWindow)
-        wx.EVT_SIZE(self, self.OnSize)
+            self.messages = []
+            self.sizeVisible = True
+            
+            self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnEntryActivated, 
+                    id=GUI_ID.lcEntries) 
+            self.Bind(wx.EVT_BUTTON, self.OnClearLog, id=GUI_ID.btnClearLog)
+            self.Bind(wx.EVT_BUTTON, self.OnHideLogWindow, 
+                    id=GUI_ID.btnHideLogWindow)
+            self.Bind(wx.EVT_SIZE, self.OnSize)
+        else:
+            d = wx.PrePanel()
+            self.PostCreate(d)
+
+            self.mainControl = mainControl
+            res = wx.xrc.XmlResource.Get()
+            res.LoadOnPanel(self, parent, "LogWindow")
+            self.ctrls = XrcControls(self)
+            self.ctrls.lcEntries.InsertColumn(0, _(u"Message"))
+
+            self.messages = []
+            self.sizeVisible = True
+            
+            wx.EVT_LIST_ITEM_ACTIVATED(self, GUI_ID.lcEntries, self.OnEntryActivated) 
+            wx.EVT_BUTTON(self, GUI_ID.btnClearLog, self.OnClearLog)
+            wx.EVT_BUTTON(self, GUI_ID.btnHideLogWindow, self.OnHideLogWindow)
+            wx.EVT_SIZE(self, self.OnSize)
 
 
     def close(self):
