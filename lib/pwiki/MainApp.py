@@ -131,7 +131,7 @@ class App(wx.App, MiscEventSourceMixin):
         
         WindowLayout.initiateAfterWxApp()
         self.removeAppLockOnExit = False
-        wx.EVT_END_SESSION(self, self.OnEndSession)
+        self.Bind(wx.EVT_END_SESSION, self.OnEndSession)
         appdir = os.path.dirname(os.path.abspath(sys.argv[0]))
         
         self.mainFrameSet = set()
@@ -190,7 +190,7 @@ class App(wx.App, MiscEventSourceMixin):
         if os.path.exists(pathEnc(globalConfigLoc)):
             try:
                 self.globalConfig.loadConfig(globalConfigLoc)
-            except Configuration.Error, MissingConfigurationFileException:
+            except Configuration.Error as MissingConfigurationFileException:
                 self.createDefaultGlobalConfig(globalConfigLoc)
         else:
             globalConfigLoc = os.path.join(self.globalConfigDir,
@@ -198,7 +198,7 @@ class App(wx.App, MiscEventSourceMixin):
             if os.path.exists(pathEnc(globalConfigLoc)):
                 try:
                     self.globalConfig.loadConfig(globalConfigLoc)
-                except Configuration.Error, MissingConfigurationFileException:
+                except Configuration.Error as MissingConfigurationFileException:
                     self.createDefaultGlobalConfig(globalConfigLoc)
             else:
                 self.createDefaultGlobalConfig(defaultGlobalConfigLoc)
@@ -363,7 +363,7 @@ class App(wx.App, MiscEventSourceMixin):
                     if answer != wx.YES:
                         return False
                     
-            except socket.error, e:
+            except socket.error as e:
                 answer = wx.MessageBox(
                         _(u"WikidPad couldn't detect if other processes are "
                         "already running.\nSocket error: %s\nContinue anyway?") %

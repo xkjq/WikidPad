@@ -558,8 +558,9 @@ class ViHelper():
                 return False
             return True
 
-        if self._acceptable_keys is None or \
-                                "*" not in self._acceptable_keys:
+        if (self._acceptable_keys is None or \
+                "*" not in self._acceptable_keys) \
+                                and type(key) is not tuple:
             if 48 <= key <= 57: # Normal
                 if self.SetNumber(key-48):
                     return True
@@ -642,6 +643,9 @@ class ViHelper():
             pass
 
         return True
+
+    def KeyCommandInProgress(self):
+        return self.key_inputs
 
     def NextKeyCommandCanBeMotion(self):
         """
@@ -1337,16 +1341,8 @@ class ViHelper():
         Starts a : cmd input for the currently active (or soon to be 
         activated) tab.
 
-        We have use CallAfter if there is a page change event currently
-        in progress (may result in some incorrectly sent key/char evts)
         """
-        if self.ctrl.getMainControl().getMainAreaPanel().preparingPresenter:
-            wx.CallAfter(self.StartCmdInputPostEvents, initial_input, run_cmd)
-            return
-
-        self.StartCmdInputPostEvents(initial_input, run_cmd)
-
-    def StartCmdInputPostEvents(self, initial_input=None, run_cmd=False):
+        # TODO: handle switching between presenters
         selection_range = None
         if self.mode == ViHelper.VISUAL:
             if initial_input is None:
@@ -1446,14 +1442,13 @@ class ViVisualBell(wxPopupOrFrame):
 
         self.Show()
         if close_delay > 0:
-            wx.EVT_TIMER(self, GUI_ID.TIMER_VISUAL_BELL_CLOSE,
-                    self.OnClose)
+            self.Bind(wx.EVT_TIMER, self.OnClose, id=GUI_ID.TIMER_VISUAL_BELL_CLOSE)
 
             self.closeTimer = wx.Timer(self, GUI_ID.TIMER_VISUAL_BELL_CLOSE)
             self.closeTimer.Start(close_delay, True)
         else:
-            wx.EVT_KEY_DOWN(self.text, self.OnClose)
-            wx.EVT_KILL_FOCUS(self.text, self.OnClose)
+            self.text.Bind(wx.EVT_KEY_DOWN, self.OnClose)
+            self.text.Bind(wx.EVT_KILL_FOCUS, self.OnClose)
             self.SetFocus()
 
 
@@ -1512,12 +1507,11 @@ class ViHintDialog(wx.Frame):
         self.closeDelay = 1000 * config.getint("main", "incSearch_autoOffDelay",
                 0)  # Milliseconds to close or 0 to deactivate
 
-        wx.EVT_TEXT(self, GUI_ID.INC_SEARCH_TEXT_FIELD, self.OnText)
-        wx.EVT_KEY_DOWN(self.tfInput, self.OnKeyDownInput)
-        wx.EVT_KILL_FOCUS(self.tfInput, self.OnKillFocus)
-        wx.EVT_TIMER(self, GUI_ID.TIMER_INC_SEARCH_CLOSE,
-                self.OnTimerIncSearchClose)
-        wx.EVT_MOUSE_EVENTS(self.tfInput, self.OnMouseAnyInput)
+        self.Bind(wx.EVT_TEXT, self.OnText, id=GUI_ID.INC_SEARCH_TEXT_FIELD)
+        self.tfInput.Bind(wx.EVT_KEY_DOWN, self.OnKeyDownInput)
+        self.tfInput.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
+        self.Bind(wx.EVT_TIMER, self.OnTimerIncSearchClose, id=GUI_ID.TIMER_INC_SEARCH_CLOSE)
+        self.tfInput.Bind(wx.EVT_MOUSE_EVENTS, self.OnMouseAnyInput)
 
         if self.closeDelay:
             self.closeTimer = wx.Timer(self, GUI_ID.TIMER_INC_SEARCH_CLOSE)
@@ -1571,7 +1565,7 @@ class ViHintDialog(wx.Frame):
 
         searchString = self.tfInput.GetValue()
 
-        foundPos = -26
+        foundPos = -2
         if accP in ((wx.ACCEL_NORMAL, wx.WXK_NUMPAD_ENTER),
                 (wx.ACCEL_NORMAL, wx.WXK_RETURN)):
             # Return pressed
@@ -1850,6 +1844,12 @@ class CmdParser():
             "inspect" : (self.Pass, self.StartInspection,
                         "Launch the wxPython inspection tool"),
 
+            "start_trace" : (self.Pass, self.StartStackTrace,
+                        "Starts logging a stacktrace file"),
+
+            "start_logging" : (self.Pass, self.StartLogging,
+                        "Starts logging at a higher level"),
+
             "list-keybindings" : (self.Pass, self.ShowKeybindings,
                         "Displays a list of the currently \
                             loaded keybindings"),
@@ -1887,7 +1887,23 @@ class CmdParser():
 
     def StartInspection(self, args=None):
         import wx.lib.inspection
-        wx.lib.inspection.InspectionTool().Show()
+        wx.CallAfter(wx.lib.inspection.InspectionTool().Show)
+        return True
+
+    def StartStackTrace(self, args=None):
+        import stacktracer
+        stacktracer.trace_start("trace.html",interval=5,auto=True)
+
+    def StartLogging(self, args=None):
+        import multiprocessing, logging
+        logger = multiprocessing.log_to_stderr()
+        logger.setLevel(multiprocessing.SUBDEBUG)
+
+#    def Test(self):
+#        SimpleLog("part3")
+#        #callInMainThreadAsync(wx.lib.inspection.InspectionTool().Show)
+#        SimpleLog("part4")
+
 
     def ShowKeybindings(self, args=None):
         # A quick and dirty way to view all currently registered vi
@@ -2183,7 +2199,8 @@ class CmdParser():
         if self.CheckForRangeCmd(text_input):
             return self.ExecuteRangeCmd(text_input)
 
-        if viInputListBox_selection > -1 and self.viInputListBox.HasData():
+        if viInputListBox_selection is not None and \
+                viInputListBox_selection > -1 and self.viInputListBox.HasData():
             arg = (0, self.viInputListBox.GetData(viInputListBox_selection))
         else:
             arg = None
@@ -2669,10 +2686,12 @@ class ViInputDialog(wx.Panel):
 #        self.dialog_start_size = rect.GetSize()
         #self.dialog_start_size = rect.GetSize()
 
-        wx.EVT_SIZE(self, self.OnSize)
+        self.Bind(wx.EVT_SIZE, self.OnSize)
 
         self.run_cmd_timer = wx.Timer(self, GUI_ID.TIMER_VI_UPDATE_CMD)
-        wx.EVT_TIMER(self, GUI_ID.TIMER_VI_UPDATE_CMD, self.CheckViInput)
+        #wx.EVT_TIMER(self, GUI_ID.TIMER_VI_UPDATE_CMD, self.CheckViInput)
+        self.Bind(wx.EVT_TIMER, self.CheckViInput, 
+                id=GUI_ID.TIMER_VI_UPDATE_CMD)
 
         self.ctrls.viInputTextField.SetBackgroundColour(
                 ViInputDialog.COLOR_YELLOW)
@@ -2681,14 +2700,19 @@ class ViInputDialog(wx.Panel):
 
         #wx.EVT_SET_FOCUS(self.ctrls.viInputListBox, self.FocusInputField)
 
-        wx.EVT_TEXT(self, GUI_ID.viInputTextField, self.OnText)
-        wx.EVT_KEY_DOWN(self.ctrls.viInputTextField, self.OnKeyDownInput)
-        wx.EVT_TIMER(self, GUI_ID.TIMER_INC_SEARCH_CLOSE,
-                self.OnTimerIncViInputClose)
-        wx.EVT_MOUSE_EVENTS(self.ctrls.viInputTextField, self.OnMouseAnyInput)
+        self.Bind(wx.EVT_TEXT, self.OnText, id=GUI_ID.viInputTextField)
+        self.ctrls.viInputTextField.Bind(wx.EVT_KEY_DOWN, self.OnKeyDownInput)
 
-        wx.EVT_LEFT_DOWN(self.ctrls.viInputListBox, self.OnLeftMouseListBox)
-        wx.EVT_LEFT_DCLICK(self.ctrls.viInputListBox, self.OnLeftMouseDoubleListBox)
+        #wx.EVT_TIMER(self, GUI_ID.TIMER_INC_SEARCH_CLOSE,
+        #        self.OnTimerIncViInputClose)
+        if self.closeDelay:
+            self.Bind(wx.EVT_TIMER, self.OnTimerIncViInputClose,
+                    id=GUI_ID.TIMER_INC_SEARCH_CLOSE)
+
+        self.ctrls.viInputTextField.Bind(wx.EVT_MOUSE_EVENTS, self.OnMouseAnyInput)
+
+        self.ctrls.viInputListBox.Bind(wx.EVT_LEFT_DOWN, self.OnLeftMouseListBox)
+        self.ctrls.viInputListBox.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftMouseDoubleListBox)
 
         if self.closeDelay:
             self.closeTimer = wx.Timer(self, GUI_ID.TIMER_INC_SEARCH_CLOSE)
@@ -2699,7 +2723,7 @@ class ViInputDialog(wx.Panel):
         self.list_selection = None
 
         self.block_kill_focus = False
-        wx.EVT_KILL_FOCUS(self.ctrls.viInputTextField, self.OnKillFocus)
+        self.ctrls.viInputTextField.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
 
     def StartCmd(self, ctrl, cmd_history, text, selection_range=None, 
                                                             run_cmd=False):
@@ -2893,17 +2917,17 @@ class ViInputDialog(wx.Panel):
         self.run_cmd_timer.Stop()
 
         if self.cmd_parser.CheckForRangeCmd(self.ctrls.viInputTextField.GetValue()):
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_WHITE)
+            self.SetBackgroundColour(ViInputDialog.COLOR_WHITE)
             return
 
         valid_cmd = self.ParseViInput(self.ctrls.viInputTextField.GetValue())
 
         if valid_cmd == False:
             # Nothing found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
+            self.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
         else:
             # Found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
+            self.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
 
 
     def ParseViInput(self, input_text):
@@ -3032,12 +3056,16 @@ class ViInputDialog(wx.Panel):
 
         if foundPos == False:
             # Nothing found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
+            self.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
         else:
             # Found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
+            self.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
 
         # Else don't change
+
+    def SetBackgroundColour(self, colour):
+        callInMainThread(self.ctrls.viInputTextField.SetBackgroundColour, colour)
+        SimpleLog("ViInputBox colour set")
 
     def ExecuteCurrentCmd(self):
         self.ExecuteCmd(self.GetInput())
@@ -3109,7 +3137,7 @@ class ViCmdList(wx.HtmlListBox):
 
         self.parent = parent
 
-        wx.EVT_LISTBOX_DCLICK(self, -1, self.OnDClick)
+        self.Bind(wx.EVT_LISTBOX_DCLICK, self.OnDClick, id=-1)
 
         self.ClearData()
 

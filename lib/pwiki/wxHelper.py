@@ -641,10 +641,14 @@ def appendToMenuByMenuDesc(menu, desc, keyBindings=None):
     menu -- already created wx-menu where items should be appended
     desc consists of lines, each line represents an item. A line only
     containing '-' is a separator. Other lines consist of multiple
-    parts separated by ';'. The first part is the display name of the
-    item, it may be preceded by '*' for a radio item or '+' for a checkbox
-    item.
+    parts separated by ';'.
     
+    The first part is the display name of the
+    item, it may be preceded by '*' for a radio item or '+' for a checkbox
+    item. Submenus can be used by using '|', if the submenu already exists 
+    in the menu the menu item will be append to it, otherwise the submenu 
+    will be created automatically.
+
     The second part is the command id as it can be retrieved by GUI_ID,
     third part (optional) is the long help text for status line.
     
@@ -653,6 +657,7 @@ def appendToMenuByMenuDesc(menu, desc, keyBindings=None):
     in the KeyBindings, e.g. "*ShowFolding". If keyBindings
     parameter is None, all shortcuts (with or without *) are ignored.
     """
+    menuItems = []
     for line in desc.split(u"\n"):
         if line.strip() == u"":
             continue
@@ -691,7 +696,31 @@ def appendToMenuByMenuDesc(menu, desc, keyBindings=None):
             if menuID == -1:
                 continue
             parts[2] = _unescapeWithRe(parts[2])
-            menu.Append(menuID, _(title), _(parts[2]), kind)
+
+
+            # Check and see if we want a submenu
+            submenu = None
+            # TODO: this should be recursive to allow for nested submenus
+            if "|" in title:
+                submenu_name, title, = title.split("|")
+
+                # Menu ID's are always negative. -1 is returned if not found
+                submenu_id = menu.FindItem(submenu_name)
+                if submenu_id != -1:
+                    submenu = menu.FindItemById(submenu_id).SubMenu
+                # If we can't find the submenu create it
+                else:
+                    submenu = wx.Menu()
+                    menu.AppendMenu(wx.ID_ANY, submenu_name, submenu)
+
+            if submenu is not None:
+                menuItem = submenu.Append(menuID, _(title), _(parts[2]), kind)
+            else:
+                menuItem = menu.Append(menuID, _(title), _(parts[2]), kind)
+            
+            menuItems.append(menuItem)
+
+    return menuItems
 
 
 

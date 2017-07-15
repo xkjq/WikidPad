@@ -45,14 +45,18 @@ class ConnectWrap:
         self.__dict__["dbConn"] = connection
         self.__dict__["dbCursor"] = connection.cursor()
         
-        self.__dict__["execute"] = self.dbCursor.execute
+        #self.__dict__["execute"] = self.dbCursor.execute # REMOVE
         # self.__dict__["executemany"] = self.dbCursor.executemany  # TODO Replace by simple implementation
-        self.__dict__["commit"] = self.dbConn.commit
+        #self.__dict__["commit"] = self.dbConn.commit # REMOVE
+        self.__dict__["syncCommit"] = self.dbConn.commit
+
         self.__dict__["rollback"] = self.dbConn.rollback
         self.__dict__["fetchone"] = self.dbCursor.fetchone
         self.__dict__["fetchall"] = self.dbCursor.fetchall
 
         self.__dict__["_defaultValues"] = DEFAULT_VALS
+
+        self.commitNeeded = False
 
         
     def __setattr__(self, attr, value):
@@ -60,6 +64,26 @@ class ConnectWrap:
         
     def __getattr__(self,  attr):
         return getattr(self.dbCursor, attr)
+
+    def commit(self):
+        if self.commitNeeded:
+            self.dbConn.commit()
+
+        self.commitNeeded = False
+
+    def execute(self, sql, params=None):
+        """
+        Helper to detect if the sql code to be executed will
+        require a commit
+        """
+        if any(s in sql for s in ("update", "delete", "insert")):
+            self.commitNeeded = True
+
+        if params:
+            params = tuple(map(_uniToUtf8, params))
+            self.dbCursor.execute(sql, params)
+        else:
+            self.dbCursor.execute(sql)
 
     def readDefaultValues(self):
         self.fillDefaultValues()  # DEBUG ONLY!!!
@@ -100,12 +124,9 @@ class ConnectWrap:
 
     def execSql(self, sql, params=None):
         "utility method, executes the sql"
-        if params:
-            params = tuple(map(_uniToUtf8, params))
-            self.execute(sql, params)
-        else:
-            self.execute(sql)
-            
+    
+        self.execute(sql, params)
+
 
     def execSqlQuery(self, sql, params=None, strConv=True):
         """
@@ -141,10 +162,7 @@ class ConnectWrap:
         over the query results
         """
         ## print "execSqlQuery sql", sql, repr(params)
-        if params:
-            self.execute(sql, params)
-        else:
-            self.execute(sql)
+        self.execute(sql, params)
 
         return iter(self.dbCursor)
 
@@ -519,6 +537,8 @@ def recreateCacheTables(connwrap):
         changeTableSchema(connwrap, tn, TABLE_DEFINITIONS[tn])
         
     rebuildIndices(connwrap)
+
+    connwrap.commitNeeded = True
 
 #     connwrap.execSql("create unique index wikirelations_pkey on wikirelations(word, relation)")
 #     connwrap.execSql("create index wikirelations_word on wikirelations(word)")

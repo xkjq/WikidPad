@@ -267,7 +267,8 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
                     "openedWiki", "openWikiWord", "newWikiWord",
                     "openedWikiWord", "savingWikiWord", "savedWikiWord",
                     "renamedWikiWord", "deletedWikiWord", "exit",
-                    "closingWiki", "droppingWiki", "closedWiki"
+                    "closingWiki", "droppingWiki", "closedWiki", 
+                    "previewPageNavigation", "previewPageLoaded",
                     ] ),
 
                 plm.registerWrappedPluginAPI(("hooks", 1),
@@ -1748,6 +1749,12 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
                 _(u'Copy full "wiki:" URL of the word to clipboard'),
                 self.OnCmdClipboardCopyUrlToCurrentWikiWord,
                 updatefct=(self.OnUpdateDisNotWikiPage,))
+
+        self.addMenuItem(wikiPageMenu, _(u'Find Similar WikiWords'),
+                _(u'Find similary named WikiWords to the highlighted link'),
+                lambda evt: self.getActiveEditor().findSimilarWords(),
+                updatefct=(self.OnUpdateDisNotTextedit, self.OnUpdateDisNotWikiPage)
+                )
 
         wikiPageMenu.AppendSeparator()
 
@@ -4130,13 +4137,18 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
 
         # Check for canonical parent to set as default selection
         default = None
-        canonical_parent = self.getWikiDocument().getAttributeTriples(ofWord, "parent", None)
+        canonical_parent = self.getWikiDocument().getAttributeTriples(ofWord, \
+                "parent", None)
+        
         if canonical_parent:
-            default = canonical_parent[0][2]
+            # Loop through all (canonical) parents
+            for current_page, attribute, parent in canonical_parent:
+                # Add the canonical parent to the list if its not already there
+                if parent not in parents:
+                    parents.append(parent)
 
-            # Add the canonical parent to the list if it does not exist
-            if default not in parents:
-                parents.append(default)
+            # Use the first parent as the default
+            default = canonical_parent[0][2]
         
             
         self.viewWordSelection(_(u"Parent nodes of '%s'") % ofWord, parents,
@@ -4163,6 +4175,16 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
         except (IOError, OSError, DbAccessError), e:
             self.lostAccess(e)
             raise
+
+        # If a page has this word as its canonical parent include it here
+        # as a child
+        canonical_child = self.getWikiDocument().getAttributeTriples(None, \
+                "parent", ofWord)
+        if canonical_child:
+            for child, attribute, current_page in canonical_child:
+                if child not in children:
+                    children.append(child)
+
         self.viewWordSelection(_(u"Child nodes of '%s'") % ofWord, children,
                 "child")
 

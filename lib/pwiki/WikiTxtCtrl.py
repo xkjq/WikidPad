@@ -262,24 +262,24 @@ class WikiTxtCtrl(SearchableScintillaControl):
         ))
 
 
-        wx.stc.EVT_STC_STYLENEEDED(self, ID, self.OnStyleNeeded)
-        wx.stc.EVT_STC_CHARADDED(self, ID, self.OnCharAdded)
-        wx.stc.EVT_STC_MODIFIED(self, ID, self.OnModified)
-        wx.stc.EVT_STC_USERLISTSELECTION(self, ID, self.OnUserListSelection)
-        wx.stc.EVT_STC_MARGINCLICK(self, ID, self.OnMarginClick)
-        wx.stc.EVT_STC_DWELLSTART(self, ID, self.OnDwellStart)
-        wx.stc.EVT_STC_DWELLEND(self, ID, self.OnDwellEnd)
+        self.Bind(wx.stc.EVT_STC_STYLENEEDED, self.OnStyleNeeded)
+        self.Bind(wx.stc.EVT_STC_CHARADDED, self.OnCharAdded)
+        self.Bind(wx.stc.EVT_STC_MODIFIED, self.OnModified)
+        self.Bind(wx.stc.EVT_STC_USERLISTSELECTION, self.OnUserListSelection)
+        self.Bind(wx.stc.EVT_STC_MARGINCLICK, self.OnMarginClick)
+        self.Bind(wx.stc.EVT_STC_DWELLSTART, self.OnDwellStart)
+        self.Bind(wx.stc.EVT_STC_DWELLEND, self.OnDwellEnd)
 
 #         wx.EVT_LEFT_DOWN(self, self.OnClick)
-        wx.EVT_MIDDLE_DOWN(self, self.OnMiddleDown)
-        wx.EVT_LEFT_DCLICK(self, self.OnDoubleClick)
+        self.Bind(wx.EVT_MIDDLE_DOWN, self.OnMiddleDown)
+        self.Bind(wx.EVT_LEFT_DCLICK, self.OnDoubleClick)
 
 #         if config.getboolean("main", "editor_useImeWorkaround", False):
 #             wx.EVT_CHAR(self, self.OnChar_ImeWorkaround)
 
-        wx.EVT_SET_FOCUS(self, self.OnSetFocus)
+        self.Bind(wx.EVT_SET_FOCUS, self.OnSetFocus)
 
-        wx.EVT_CONTEXT_MENU(self, self.OnContextMenu)
+        self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
 #         self.incSearchCharStartPos = 0
         self.incSearchPreviousHiddenLines = None
@@ -306,99 +306,96 @@ class WikiTxtCtrl(SearchableScintillaControl):
         self.contextMenuSpellCheckSuggestions = None
 
         # Connect context menu events to functions
-        wx.EVT_MENU(self, GUI_ID.CMD_UNDO, lambda evt: self.Undo())
-        wx.EVT_MENU(self, GUI_ID.CMD_REDO, lambda evt: self.Redo())
+        self.Bind(wx.EVT_MENU, lambda evt: self.Undo(), id=GUI_ID.CMD_UNDO)
+        self.Bind(wx.EVT_MENU, lambda evt: self.Redo(), id=GUI_ID.CMD_REDO)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_CLIPBOARD_CUT, lambda evt: self.Cut())
-        wx.EVT_MENU(self, GUI_ID.CMD_CLIPBOARD_COPY, lambda evt: self.Copy())
-        wx.EVT_MENU(self, GUI_ID.CMD_CLIPBOARD_PASTE, lambda evt: self.Paste())
-        wx.EVT_MENU(self, GUI_ID.CMD_CLIPBOARD_PASTE_RAW_HTML,
-                lambda evt: self.pasteRawHtml())
-        wx.EVT_MENU(self, GUI_ID.CMD_SELECT_ALL, lambda evt: self.SelectAll())
+        self.Bind(wx.EVT_MENU, lambda evt: self.Cut(), id=GUI_ID.CMD_CLIPBOARD_CUT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.Copy(), id=GUI_ID.CMD_CLIPBOARD_COPY)
+        self.Bind(wx.EVT_MENU, lambda evt: self.Paste(), id=GUI_ID.CMD_CLIPBOARD_PASTE)
+        self.Bind(wx.EVT_MENU, lambda evt: self.pasteRawHtml(), id=GUI_ID.CMD_CLIPBOARD_PASTE_RAW_HTML)
+        self.Bind(wx.EVT_MENU, lambda evt: self.SelectAll(), id=GUI_ID.CMD_SELECT_ALL)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_TEXT_DELETE, lambda evt: self.ReplaceSelection(""))
-        wx.EVT_MENU(self, GUI_ID.CMD_ZOOM_IN,
-                lambda evt: self.CmdKeyExecute(wx.stc.STC_CMD_ZOOMIN))
-        wx.EVT_MENU(self, GUI_ID.CMD_ZOOM_OUT,
-                lambda evt: self.CmdKeyExecute(wx.stc.STC_CMD_ZOOMOUT))
+        self.Bind(wx.EVT_MENU, lambda evt: self.ReplaceSelection(""), id=GUI_ID.CMD_TEXT_DELETE)
+        self.Bind(wx.EVT_MENU, lambda evt: self.CmdKeyExecute(wx.stc.STC_CMD_ZOOMIN), id=GUI_ID.CMD_ZOOM_IN)
+        self.Bind(wx.EVT_MENU, lambda evt: self.CmdKeyExecute(wx.stc.STC_CMD_ZOOMOUT), id=GUI_ID.CMD_ZOOM_OUT)
 
 
         for sps in self.SUGGESTION_CMD_IDS:
-            wx.EVT_MENU(self, sps, self.OnReplaceThisSpellingWithSuggestion)
+            self.Bind(wx.EVT_MENU, self.OnReplaceThisSpellingWithSuggestion, id=sps)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ADD_THIS_SPELLING_SESSION,
-                self.OnAddThisSpellingToIgnoreSession)
-        wx.EVT_MENU(self, GUI_ID.CMD_ADD_THIS_SPELLING_GLOBAL,
-                self.OnAddThisSpellingToIgnoreGlobal)
-        wx.EVT_MENU(self, GUI_ID.CMD_ADD_THIS_SPELLING_LOCAL,
-                self.OnAddThisSpellingToIgnoreLocal)
+        self.Bind(wx.EVT_MENU, self.OnAddThisSpellingToIgnoreSession, 
+                id=GUI_ID.CMD_ADD_THIS_SPELLING_SESSION)
+        self.Bind(wx.EVT_MENU, self.OnAddThisSpellingToIgnoreGlobal, 
+                id=GUI_ID.CMD_ADD_THIS_SPELLING_GLOBAL)
+        self.Bind(wx.EVT_MENU, self.OnAddThisSpellingToIgnoreLocal, 
+                id=GUI_ID.CMD_ADD_THIS_SPELLING_LOCAL)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_LOGICAL_LINE_UP,
-                self.OnLogicalLineMove)
-        wx.EVT_MENU(self, GUI_ID.CMD_LOGICAL_LINE_UP_WITH_INDENT,
-                self.OnLogicalLineMove)
-        wx.EVT_MENU(self, GUI_ID.CMD_LOGICAL_LINE_DOWN,
-                self.OnLogicalLineMove)
-        wx.EVT_MENU(self, GUI_ID.CMD_LOGICAL_LINE_DOWN_WITH_INDENT,
-                self.OnLogicalLineMove)
+        self.Bind(wx.EVT_MENU, self.OnLogicalLineMove, 
+                id=GUI_ID.CMD_LOGICAL_LINE_UP)
+        self.Bind(wx.EVT_MENU, self.OnLogicalLineMove, 
+                id=GUI_ID.CMD_LOGICAL_LINE_UP_WITH_INDENT)
+        self.Bind(wx.EVT_MENU, self.OnLogicalLineMove, 
+                id=GUI_ID.CMD_LOGICAL_LINE_DOWN)
+        self.Bind(wx.EVT_MENU, self.OnLogicalLineMove, 
+                id=GUI_ID.CMD_LOGICAL_LINE_DOWN_WITH_INDENT)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS, self.OnActivateThis)
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS,
-                self.OnActivateNewTabThis)
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS,
-                self.OnActivateNewTabBackgroundThis)
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_WINDOW_THIS,
-                self.OnActivateNewWindowThis)
+        self.Bind(wx.EVT_MENU, self.OnActivateThis, 
+                id=GUI_ID.CMD_ACTIVATE_THIS)
+        self.Bind(wx.EVT_MENU, self.OnActivateNewTabThis, 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS)
+        self.Bind(wx.EVT_MENU, self.OnActivateNewTabBackgroundThis, 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS)
+        self.Bind(wx.EVT_MENU, self.OnActivateNewWindowThis, 
+                id=GUI_ID.CMD_ACTIVATE_NEW_WINDOW_THIS)
 
         # Passing the evt here is not strictly necessary, but it may be
         # used in the future
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_LEFT,
-                lambda evt: self.OnActivateThis(evt, u"left"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_LEFT,
-                lambda evt: self.OnActivateNewTabThis(evt, u"left"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_LEFT,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"left"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "left"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_LEFT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, "left"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_LEFT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(evt, "left"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_LEFT)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_RIGHT,
-                lambda evt: self.OnActivateThis(evt, u"right"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_RIGHT,
-                lambda evt: self.OnActivateNewTabThis(evt, u"right"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_RIGHT,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"right"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "right"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_RIGHT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, "right"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_RIGHT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(evt, "right"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_RIGHT)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_ABOVE,
-                lambda evt: self.OnActivateThis(evt, u"above"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_ABOVE,
-                lambda evt: self.OnActivateNewTabThis(evt, u"above"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_ABOVE,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"above"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "above"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_ABOVE)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, "above"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_ABOVE)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(evt, "above"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_ABOVE)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_BELOW,
-                lambda evt: self.OnActivateThis(evt, u"below"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_BELOW,
-                lambda evt: self.OnActivateNewTabThis(evt, u"below"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_BELOW,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"below"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "below"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_BELOW)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, "below"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_BELOW)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(evt, "below"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_BELOW)
 
 
-        wx.EVT_MENU(self, GUI_ID.CMD_CONVERT_URL_ABSOLUTE_RELATIVE_THIS,
-                self.OnConvertUrlAbsoluteRelativeThis)
+        self.Bind(wx.EVT_MENU, self.OnConvertUrlAbsoluteRelativeThis, 
+                id=GUI_ID.CMD_CONVERT_URL_ABSOLUTE_RELATIVE_THIS)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_OPEN_CONTAINING_FOLDER_THIS,
-                self.OnOpenContainingFolderThis)
+        self.Bind(wx.EVT_MENU, self.OnOpenContainingFolderThis, 
+                id=GUI_ID.CMD_OPEN_CONTAINING_FOLDER_THIS)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_DELETE_FILE,
-                self.OnDeleteFile)
+        self.Bind(wx.EVT_MENU, self.OnDeleteFile, 
+                id=GUI_ID.CMD_DELETE_FILE)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_RENAME_FILE,
-                self.OnRenameFile)
+        self.Bind(wx.EVT_MENU, self.OnRenameFile, id=GUI_ID.CMD_RENAME_FILE)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_CLIPBOARD_COPY_URL_TO_THIS_ANCHOR,
-                self.OnClipboardCopyUrlToThisAnchor)
+        self.Bind(wx.EVT_MENU, self.OnClipboardCopyUrlToThisAnchor, 
+                id=GUI_ID.CMD_CLIPBOARD_COPY_URL_TO_THIS_ANCHOR)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_SELECT_TEMPLATE, self.OnSelectTemplate)
-
-    # 2.8 does not support SetEditable - Define a dummy function for now
+        self.Bind(wx.EVT_MENU, self.OnSelectTemplate, 
+                id=GUI_ID.CMD_SELECT_TEMPLATE)
+#    # 2.8 does not support SetEditable - Define a dummy function for now
     if wx.version().startswith("2.8"):
         def SetEditable(self, state):
             pass
@@ -1762,9 +1759,20 @@ class WikiTxtCtrl(SearchableScintillaControl):
 
     def handleDropText(self, x, y, text):
         if x != -1:
-            # Real drop
-            self.DoDropText(x, y, text)
-            self.gotoCharPos(self.GetSelectionCharPos()[1], scroll=False)
+            # TODO: should probably make this optional
+            # If a internal link is droped activate it instead
+            if "internaljump/wikipage/" in text and \
+                    "\n" not in text and \
+                    " " not in text:
+                page = StringOps.flexibleUrlUnquote(text.split("internaljump/")[-1])
+                self.presenter.makeCurrent()
+
+                self.presenter.getMainControl().activatePageByUnifiedName(
+                        page)
+            else:
+                # Real drop
+                self.DoDropText(x, y, text)
+                self.gotoCharPos(self.GetSelectionCharPos()[1], scroll=False)
         else:
             self.ReplaceSelection(text)
 
@@ -2525,6 +2533,31 @@ class WikiTxtCtrl(SearchableScintillaControl):
         return self.activateTokens(tokens, tabMode)
 
 
+    def findSimilarWords(self, mousePosition=None):
+        """
+        Finds similar words to an undefined link
+
+        TODO: make an activateLink option?
+        """
+        nodeList = self.getTokensForMousePos(mousePosition)
+
+        if len(nodeList) == 0:
+            return False
+
+        for node in nodeList:
+            if node.name == "wikiWord":
+
+                #if self.presenter.getWikiDocument().isDefinedWikiLinkTerm(
+                #        node.wikiWord):
+                #    return False
+
+                dlg = AdditionalDialogs.FindSimilarNamedWikiWordDialog(
+                        self.presenter, -1, node.wikiWord, 0)
+                dlg.CenterOnParent(wx.BOTH)
+                dlg.ShowModal()
+                dlg.Destroy()
+                return
+               
 
     def OnReplaceThisSpellingWithSuggestion(self, evt):
         if self.contextMenuTokens and self.contextMenuSpellCheckSuggestions:
@@ -2616,6 +2649,8 @@ class WikiTxtCtrl(SearchableScintillaControl):
         if self.contextMenuTokens:
             ed.activateTokens(self.contextMenuTokens, 6)
 
+    def OnFindSimilarWikiWords(self, evt, direction=None):
+        self.findSimilarWords()
 
     def OnOpenContainingFolderThis(self, evt):
         if self.contextMenuTokens:
@@ -3536,7 +3571,7 @@ class WikiTxtCtrl(SearchableScintillaControl):
 
             try:
                 wikiPage.checkFileSignatureAndMarkDirty()
-            except (IOError, OSError, DbAccessError), e:
+            except (IOError, OSError, DbAccessError) as e:
                 self.presenter.getMainControl().lostAccess(e)
 
             evt.Skip()
@@ -3555,7 +3590,7 @@ class WikiTxtCtrl(SearchableScintillaControl):
 
             try:
                 wikiPage.checkFileSignatureAndMarkDirty()
-            except (IOError, OSError, DbAccessError), e:
+            except (IOError, OSError, DbAccessError) as e:
                 self.presenter.getMainControl().lostAccess(e)
 
 
@@ -3707,6 +3742,10 @@ class WikiTxtCtrl(SearchableScintillaControl):
                     # Decide if this is an image link
                     if appendixDict.has_key("l"):
                         urlAsImage = False
+                    # If we have an external link prevent its attemped render
+                    elif astNode.url.lower().startswith("http"):
+                        urlAsImage = False
+                        callTip = _(u"External (http) link")
                     elif appendixDict.has_key("i"):
                         urlAsImage = True
 #                     elif self.asHtmlPreview and \
@@ -3796,6 +3835,9 @@ class WikiTxtCtrl(SearchableScintillaControl):
 
     def OnDwellStart(self, evt):
         if self.dwellLockCounter > 0:
+            return
+        elif self.vi is not None and self.vi.KeyCommandInProgress():
+            # Otherwise calltips (etc..) will break a command input
             return
 
         wikiDocument = self.presenter.getWikiDocument()
@@ -3918,7 +3960,7 @@ class WikiTxtCtrl(SearchableScintillaControl):
                 try:
                     fn = fs.createDestPath(fn, move=moveToStorage)
                     toStorage = True
-                except Exception, e:
+                except Exception as e:
                     traceback.print_exc()
                     editor.presenter.getMainControl().displayErrorMessage(
                             _(u"Couldn't copy file"), e)
@@ -4137,6 +4179,8 @@ Follow Link;CMD_ACTIVATE_THIS
 Follow Link New Tab;CMD_ACTIVATE_NEW_TAB_THIS
 Follow Link New Tab Backgrd.;CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS
 Follow Link New Window;CMD_ACTIVATE_NEW_WINDOW_THIS
+-
+Find Similarly Named WikiPages;CMD_FIND_SIMILAR_WIKIWORDS
 """
 
 _CONTEXT_MENU_INTEXT_ACTIVATE_DIRECTION = {
@@ -4717,6 +4761,7 @@ class ViHandler(ViHelper):
     # these navigation commands have been prefixed by "g".
     # TODO: different repeat command for these?
     (k["g"], k["f"])  : (0, (self.ctrl.activateLink, { "tabMode" : 0 }), 0, 0), # gf
+    (k["\\"], k["g"], k["f"])  : (0, (self.ctrl.findSimilarWords, None), 0, 0), # gf
     (k["g"], k["c"])  : (0, (self.PseudoActivateLink, 0), 0, 0), # gc
     (k["g"], k["C"])  : (0, (self.PseudoActivateLink, 2), 0, 0), # gC
 
@@ -4753,11 +4798,7 @@ class ViHandler(ViHelper):
     (k["\\"], k["s"]) : (0, (self.CreateShortHint, None), 2, 0), # \s
 
     (("Alt", k["g"]),)    : (0, (self.GoogleSelection, None), 1, 0), # <a-g>
-
-    (("Ctrl", k["w"]), k["l"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "right"), 0, 0), # <c-w>l
-    (("Ctrl", k["w"]), k["h"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "left"), 0, 0), # <c-w>l
-    (("Ctrl", k["w"]), k["j"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "below"), 0, 0), # <c-w>l
-    (("Ctrl", k["w"]), k["k"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "above"), 0, 0), # <c-w>l
+    (("Alt", k["e"]),)    : (0, (self.ctrl.evalScriptBlocks, None), 1, 0), # <a-e>
 
     (("Ctrl", k["w"]), k["l"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "right"), 0, 0), # <c-w>l
     (("Ctrl", k["w"]), k["h"])  : (0, (self.ctrl.presenter.getMainControl().getMainAreaPanel().switchPresenterByPosition, "left"), 0, 0), # <c-w>l
@@ -4852,7 +4893,7 @@ class ViHandler(ViHelper):
             })
         # And delete a few so our key mods are correct
         # These are keys that who do not serve the same function in visual mode
-        # as in normal mode (and it most cases are replaced by other function)
+        # as in normal mode (in most cases they are replaced by other function)
         del self.keys[2][(k["d"], k["d"])] # dd
         del self.keys[2][(k["y"], k["y"])] # yy
         del self.keys[2][(k["i"],)] # i
@@ -4978,7 +5019,7 @@ class ViHandler(ViHelper):
 
         if self._undo_state == 0:
             self.ctrl.BeginUndoAction()
-            print "START UNDO"
+            print("START UNDO")
             self._undo_positions = \
                         self._undo_positions[:self._undo_pos + 1]
 
@@ -4989,7 +5030,7 @@ class ViHandler(ViHelper):
                     self._undo_start_position = self.ctrl.GetCurrentPos()
 
         self._undo_state += 1
-        print "BEGIN", self._undo_state, inspect.getframeinfo(inspect.currentframe().f_back)[2]
+        print("BEGIN", self._undo_state, inspect.getframeinfo(inspect.currentframe().f_back)[2])
 
     def EndUndo(self, force=False):
         if self._undo_state == 1:
@@ -5003,10 +5044,10 @@ class ViHandler(ViHelper):
             else:
                 self._undo_positions.append(self.ctrl.GetCurrentPos())
             self._undo_pos += 1
-            print "END UNDO"
+            print("END UNDO")
         self._undo_state -= 1
 
-        print self._undo_state, inspect.getframeinfo(inspect.currentframe().f_back)[2]
+        print(self._undo_state, inspect.getframeinfo(inspect.currentframe().f_back)[2])
 
     def EndBeginUndo(self):
         # TODO: shares code with EndUndo and BeginUndo
@@ -6194,7 +6235,7 @@ class ViHandler(ViHelper):
 
     def SelectSelection(self, com_type=0):
         if com_type < 1:
-            print "Select selection called incorrectly", inspect.getframeinfo(inspect.currentframe().f_back)[2]
+            print("Select selection called incorrectly", inspect.getframeinfo(inspect.currentframe().f_back)[2])
 
             return
 
@@ -7675,6 +7716,9 @@ class ViHandler(ViHelper):
             move = self.ctrl.CharLeft
             move_extend = self.ctrl.CharLeftExtend
         else:
+            if pos >= text_length:
+                # Already at end of the text - nothing to do
+                return
             offset = 1
             move = self.ctrl.CharRight
             move_extend = self.ctrl.CharRightExtend
@@ -7684,8 +7728,9 @@ class ViHandler(ViHelper):
         if char in string.whitespace:
             char = self.GetUnichrAt(pos + offset)
             if char is not None:
-                while char is not None and char in string.whitespace:
-                    pos = pos + offset
+                while char is not None and char in string.whitespace \
+                        and pos < text_length:
+                    pos = pos + offset * len(char.encode())
                     char = self.GetUnichrAt(pos + offset)
             if not count_whitespace:
                 self.GotoPosAndSave(pos)
@@ -7700,8 +7745,9 @@ class ViHandler(ViHelper):
         elif not only_whitespace and char in self.WORD_BREAK:
             char = self.GetUnichrAt(pos + offset)
             if char is not None:
-                while char is not None and char in self.WORD_BREAK:
-                    pos = pos + offset
+                while char is not None and char in self.WORD_BREAK \
+                        and pos < text_length:
+                    pos = pos + offset * len(char.encode())
                     char = self.GetUnichrAt(pos + offset)
         # Else offset forwards to first punctuation or whitespace char
         # (or just whitespace char if only_whitespace = True)
@@ -7997,3 +8043,6 @@ class ViHandler(ViHelper):
             return link
 
         return None
+
+class PositionDoesNotExist(Exception):
+    """Raised when attempting to access an position out of range"""

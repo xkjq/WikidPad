@@ -57,8 +57,13 @@ class ConnectWrapBase:
             self.dbCursor.execute(sql)
 
 
-    def execSqlQuery(self, sql, params=None):
-        "utility method, executes the sql, returns query result"
+    def execSqlQuery(self, sql, params=None, strConv=None):
+        """
+        utility method, executes the sql, returns query result
+        
+        strConv arg is accepted (but ignored) to be compatible with
+        gadfly code
+        """
         if params:
             self.dbCursor.execute(sql, params, typeDetect=sqlite.TYPEDET_FIRST)
         else:
@@ -81,13 +86,14 @@ class ConnectWrapBase:
 #         return iter(self.dbCursor)
 
 
-    def execSqlQuerySingleColumn(self, sql, params=None):
+    def execSqlQuerySingleColumn(self, sql, params=None, strConv=None):
         "utility method, executes the sql, returns query result"
         data = self.execSqlQuery(sql, params)
         return [row[0] for row in data]
         
 
-    def execSqlQuerySingleItem(self, sql, params=None, default=None):
+    def execSqlQuerySingleItem(self, sql, params=None, default=None, 
+            strConv=None):
         """
         Executes a query to retrieve at most one row with
         one column and returns result. If query results
@@ -113,6 +119,19 @@ class ConnectWrapBase:
             self.dbCursor.execute(sql)
         except sqlite.Error:
             pass
+
+
+    def execSqlInsert(self, table, fields, values, tableDefault=None):
+        """
+        Helper to build sql insert code.
+
+        To maintain compatibility with Gadfly, insert statements can
+        be called using the same format.
+        """
+        fieldStr = ", ".join(fields)
+        qmStr = ", ".join(["?"] * len(fields))
+        self.execSql("insert into %s(%s) values (%s)" % (table, fieldStr, qmStr),
+                values)
 
 
     def getLastRowid(self):
@@ -367,6 +386,7 @@ t.i = "integer not null default 0"
 t.pi = "integer primary key not null"
 t.imo = "integer not null default -1"
 t.t = "text not null default ''"
+t.tu = "text not null unique default ''"
 t.pt = "text primary key not null"
 t.b = "blob not null default x''"
 
@@ -852,7 +872,7 @@ def checkDatabaseFormat(connwrap):
     return 0, _(u"Database format is up to date")
 
 
-def updateDatabase(connwrap, dataDir, pagefileSuffix):
+def updateDatabase(connwrap, dataDir, pagefileSuffix, wikiData):
     """
     Update a database from an older version to current (checkDatabaseFormat()
     should have returned 1 before calling this function)

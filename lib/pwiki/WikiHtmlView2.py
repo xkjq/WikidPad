@@ -99,12 +99,11 @@ class WebviewSearchDialog(wx.Frame):
         self.closeDelay = 1000 * config.getint("main", "incSearch_autoOffDelay",
                 0)  # Milliseconds to close or 0 to deactivate
 
-        wx.EVT_TEXT(self, GUI_ID.INC_SEARCH_TEXT_FIELD, self.OnText)
-        wx.EVT_KEY_DOWN(self.tfInput, self.OnKeyDownInput)
-        wx.EVT_KILL_FOCUS(self.tfInput, self.OnKillFocus)
-        wx.EVT_TIMER(self, GUI_ID.TIMER_INC_SEARCH_CLOSE,
-                self.OnTimerIncSearchClose)
-        wx.EVT_MOUSE_EVENTS(self.tfInput, self.OnMouseAnyInput)
+        self.tfInput.Bind(wx.EVT_TEXT, self.OnText)
+        self.tfInput.Bind(wx.EVT_KEY_DOWN, self.OnKeyDownInput)
+        self.tfInput.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
+        self.tfInput.Bind(wx.EVT_TIMER, self.OnTimerIncSearchClose)
+        self.tfInput.Bind(wx.EVT_MOUSE_EVENTS, self.OnMouseAnyInput)
 
         if searchInit:
             self.tfInput.SetValue(searchInit)
@@ -355,58 +354,64 @@ class WikiHtmlView2(wx.Panel):
 
         #wx.EVT_KEY_DOWN(self, self.OnKeyDown)
         #wx.EVT_KEY_UP(self, self.OnKeyUp)
-        wx.EVT_SIZE(self, self.OnSize)
+        self.Bind(wx.EVT_SIZE, self.OnSize)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_CLIPBOARD_COPY, self.OnClipboardCopy)
-        wx.EVT_MENU(self, GUI_ID.CMD_SELECT_ALL, self.OnSelectAll)
-        wx.EVT_MENU(self, GUI_ID.CMD_ZOOM_IN, lambda evt: self.addZoom(1))
-        wx.EVT_MENU(self, GUI_ID.CMD_ZOOM_OUT, lambda evt: self.addZoom(-1))
+        self.Bind(wx.EVT_MENU, self.OnClipboardCopy, 
+                id=GUI_ID.CMD_CLIPBOARD_COPY)
+        self.Bind(wx.EVT_MENU, self.OnSelectAll, 
+                id=GUI_ID.CMD_SELECT_ALL)
+        self.Bind(wx.EVT_MENU, lambda evt: self.addZoom(1), 
+                id=GUI_ID.CMD_ZOOM_IN)
+        self.Bind(wx.EVT_MENU, lambda evt: self.addZoom(-1), 
+                id=GUI_ID.CMD_ZOOM_OUT)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS, self.OnActivateThis)        
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS,
-                self.OnActivateNewTabThis)
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS,
-                self.OnActivateNewTabBackgroundThis)        
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_WINDOW_THIS,
-                self.OnActivateNewWindowThis)        
+        self.Bind(wx.EVT_MENU, self.OnActivateThis, 
+                id=GUI_ID.CMD_ACTIVATE_THIS)
+        self.Bind(wx.EVT_MENU, self.OnActivateNewTabThis, 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS)
+        self.Bind(wx.EVT_MENU, self.OnActivateNewTabBackgroundThis, 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS)
+        self.Bind(wx.EVT_MENU, self.OnActivateNewWindowThis, 
+                id=GUI_ID.CMD_ACTIVATE_NEW_WINDOW_THIS)
 
         # Passing the evt here is not strictly necessary, but it may be
         # used in the future
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_LEFT, 
-                lambda evt: self.OnActivateThis(evt, u"left"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_LEFT,
-                lambda evt: self.OnActivateNewTabThis(evt, u"left"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_LEFT,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"left"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "left"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_LEFT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, 
+            "left"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_LEFT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(
+            evt, "left"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_LEFT)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_RIGHT, 
-                lambda evt: self.OnActivateThis(evt, u"right"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_RIGHT,
-                lambda evt: self.OnActivateNewTabThis(evt, u"right"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_RIGHT,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"right"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "right"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_RIGHT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, 
+            "right"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_RIGHT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(
+            evt, "right"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_RIGHT)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_ABOVE, 
-                lambda evt: self.OnActivateThis(evt, u"above"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_ABOVE,
-                lambda evt: self.OnActivateNewTabThis(evt, u"above"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_ABOVE,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"above"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "above"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_ABOVE)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, 
+            "above"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_ABOVE)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(
+            evt, "above"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_ABOVE)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_THIS_BELOW,
-                lambda evt: self.OnActivateThis(evt, u"below"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_BELOW,
-                lambda evt: self.OnActivateNewTabThis(evt, u"below"))
-        wx.EVT_MENU(self, GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_BELOW,
-                lambda evt: self.OnActivateNewTabBackgroundThis(evt, u"below"))
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateThis(evt, "below"), 
+                id=GUI_ID.CMD_ACTIVATE_THIS_BELOW)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabThis(evt, "below"), 
+                id=GUI_ID.CMD_ACTIVATE_NEW_TAB_THIS_BELOW)
+        self.Bind(wx.EVT_MENU, lambda evt: self.OnActivateNewTabBackgroundThis(evt, 
+            "below"), id=GUI_ID.CMD_ACTIVATE_NEW_TAB_BACKGROUND_THIS_BELOW)
 
 
 
-        wx.EVT_MENU(self, GUI_ID.CMD_OPEN_CONTAINING_FOLDER_THIS,
-                self.OnOpenContainingFolderThis)
-        wx.EVT_MENU(self, GUI_ID.CMD_HISTORY_BACK, self.OnGoBackInHistory)
-        wx.EVT_MENU(self, GUI_ID.CMD_HISTORY_FORWARD, 
-                self.OnGoForwardInHistory)
+        self.Bind(wx.EVT_MENU, self.OnOpenContainingFolderThis, 
+                id=GUI_ID.CMD_OPEN_CONTAINING_FOLDER_THIS)
+        self.Bind(wx.EVT_MENU, self.OnGoBackInHistory, 
+                id=GUI_ID.CMD_HISTORY_BACK)
+        self.Bind(wx.EVT_MENU, self.OnGoForwardInHistory, 
+                id=GUI_ID.CMD_HISTORY_FORWARD)
 
         #wx.EVT_LEFT_DCLICK(self, self.OnLeftDClick)
         #wx.EVT_MIDDLE_DOWN(self.html, self.OnMiddleDown)
@@ -1053,7 +1058,7 @@ if ((typeof jQuery !== 'undefined')) {
                 self.currentLoadedWikiWord = None
                 return  # TODO Do anything else here?
 
-            self.presenter.setTabProgressThreadSafe(0, threadstop)
+            #self.presenter.setTabProgressThreadSafe(0, threadstop)
             
             # Remove previously used temporary files
             self.exporterInstance.tempFileSet.clear()
@@ -1064,10 +1069,10 @@ if ((typeof jQuery !== 'undefined')) {
 
             self.exporterInstance.setLinkConverter(
                     LinkConverterForPreviewWk(self.presenter.getWikiDocument()))   # /?
-            
+
             threadstop.testValidThread()
 
-            self.presenter.setTabProgressThreadSafe(20, threadstop)
+            #self.presenter.setTabProgressThreadSafe(20, threadstop)
 
             html = self.exporterInstance.exportWikiPageToHtmlString(wikiPage)
 
@@ -1075,7 +1080,7 @@ if ((typeof jQuery !== 'undefined')) {
 
             wx.GetApp().getInsertionPluginManager().taskEnd()
 
-            self.presenter.setTabProgressThreadSafe(30, threadstop)
+            #self.presenter.setTabProgressThreadSafe(30, threadstop)
             
             if self.currentLoadedWikiWord == word and \
                     self.anchor is None:
@@ -1092,7 +1097,8 @@ if ((typeof jQuery !== 'undefined')) {
                 # NOTE: html2 seems to be threadsafe (on linux at least)
                 #       but this should probably be moved back to the main thread
                 #       just to be sure
-                callInMainThread(self.html.LoadURL,url)
+                #callInMainThread(self.html.LoadURL,url)
+                wx.CallAfter(self.html.LoadURL,url)
 
                 # If we are just reloading the page we can leave the scroll
                 # at its last position
@@ -1114,7 +1120,7 @@ if ((typeof jQuery !== 'undefined')) {
                     url += "#" + self.anchor
 
                 self.passNavigate += 1
-                callInMainThread(self.html.LoadURL,url)
+                wx.CallAfter(self.html.LoadURL,url)
                 self.lastAnchor = self.anchor
                 
                 #if self.anchor is None:
@@ -1127,7 +1133,8 @@ if ((typeof jQuery !== 'undefined')) {
         except NotCurrentThreadException:
             return
         finally:
-            self.presenter.setTabProgressThreadSafe(100, threadstop)
+            pass
+            #self.presenter.setTabProgressThreadSafe(100, threadstop)
 
 
     def postRefresh(self, anchor):

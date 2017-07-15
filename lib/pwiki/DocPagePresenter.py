@@ -324,7 +324,7 @@ class BasicDocPagePresenter(LayeredControlPresenter):
             try:
                 # this calls in turn saveDocPage() in PersonalWikiFrame
                 self.getSubControl("textedit").saveLoadedDocPage()
-            except (IOError, OSError, DbAccessError), e:
+            except (IOError, OSError, DbAccessError) as e:
                 self.getMainControl().lostAccess(e)
                 raise
 
@@ -375,18 +375,18 @@ class DocPagePresenter(wx.Panel, BasicDocPagePresenter, StorablePerspective):
 
         wx.GetApp().getMiscEvent().addListener(self)
 
-        wx.EVT_MENU(self, GUI_ID.CMD_PAGE_HISTORY_LIST,
-                lambda evt: self.viewPageHistory())
-        wx.EVT_MENU(self, GUI_ID.CMD_PAGE_HISTORY_LIST_UP,
-                lambda evt: self.viewPageHistory(-1))
-        wx.EVT_MENU(self, GUI_ID.CMD_PAGE_HISTORY_LIST_DOWN,
-                lambda evt: self.viewPageHistory(1))
-        wx.EVT_MENU(self, GUI_ID.CMD_PAGE_HISTORY_GO_BACK,
-                lambda evt: self.pageHistory.goInHistory(-1))
-        wx.EVT_MENU(self, GUI_ID.CMD_PAGE_HISTORY_GO_FORWARD,
-                lambda evt: self.pageHistory.goInHistory(1))
-        wx.EVT_MENU(self, GUI_ID.CMD_PAGE_GO_UPWARD_FROM_SUBPAGE,
-                lambda evt: self.goUpwardFromSubpage())
+        self.Bind(wx.EVT_MENU, lambda evt: self.viewPageHistory(), 
+                id=GUI_ID.CMD_PAGE_HISTORY_LIST)
+        self.Bind(wx.EVT_MENU, lambda evt: self.viewPageHistory(-1), 
+                id=GUI_ID.CMD_PAGE_HISTORY_LIST_UP)
+        self.Bind(wx.EVT_MENU, lambda evt: self.viewPageHistory(1), 
+                id=GUI_ID.CMD_PAGE_HISTORY_LIST_DOWN)
+        self.Bind(wx.EVT_MENU, lambda evt: self.pageHistory.goInHistory(-1), 
+                id=GUI_ID.CMD_PAGE_HISTORY_GO_BACK)
+        self.Bind(wx.EVT_MENU, lambda evt: self.pageHistory.goInHistory(1), 
+                id=GUI_ID.CMD_PAGE_HISTORY_GO_FORWARD)
+        self.Bind(wx.EVT_MENU, lambda evt: self.goUpwardFromSubpage(), 
+                id=GUI_ID.CMD_PAGE_GO_UPWARD_FROM_SUBPAGE)
 
 
     def close(self):

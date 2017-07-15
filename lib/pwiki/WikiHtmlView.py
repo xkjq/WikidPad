@@ -420,6 +420,7 @@ class WikiHtmlView(wx.html.HtmlWindow):
 
     def OnSetFocus(self, evt):
         if self.visible:
+            self.presenter.makeCurrent()
             self.refresh()
 
     def OnClipboardCopy(self, evt):

@@ -64,12 +64,14 @@ class DocStructureCtrl(EnhancedListControl):
 
         self.updateList()
 
-        wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
-        wx.EVT_LIST_ITEM_SELECTED(self, self.GetId(), self.OnItemSelected)
-        wx.EVT_LIST_ITEM_ACTIVATED(self, self.GetId(), self.OnItemActivated)
-        wx.EVT_SIZE(self, self.OnSize)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.OnDestroy)
+        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, 
+                id=self.GetId())
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated, 
+                id=self.GetId())
+        self.Bind(wx.EVT_SIZE, self.OnSize)
         
-        wx.EVT_KILL_FOCUS(self, self.OnKillFocus)
+        self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
 #         wx.EVT_LEFT_UP(self, self.OnLeftUp)
 
 

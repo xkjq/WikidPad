@@ -4,4 +4,4 @@
 /.hgtags
 *.pyc
 *.swp
-*.log
+/user_extensions
