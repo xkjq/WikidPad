@@ -1043,7 +1043,7 @@ class OptionsDialog(wx.Dialog):
                 try:
                     #sel = self.optionsDialogDynamicClientData[c][sel]
                     sel = self.optionsDialogDynamicClientData[c].index(sel)
-                except (KeyError):
+                except (KeyError, ValueError):
                     sel = 0
                 self.ctrls[c].SetSelection(sel)
             elif t == "selt":   # Selection -> transfer content string
