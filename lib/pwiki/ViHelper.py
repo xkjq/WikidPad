@@ -1,4 +1,5 @@
-import wx, wx.xrc, wx.html
+import wx, wx.xrc
+import wx.html
 import wx.lib.dialogs
 from . import SystemInfo
 from .wxHelper import GUI_ID, getAccelPairFromKeyDown, getTextFromClipboard
@@ -17,6 +18,7 @@ from .wxHelper import * # Needed for  XrcControls
 from .WindowLayout import setWindowSize
 from functools import reduce
 
+from .Utilities import DUMBTHREADSTOP, callInMainThread, callInMainThreadAsync
 #TODO:  Multiple registers
 #       Page marks
 #       Alt-combinations
@@ -555,8 +557,9 @@ class ViHelper():
                 return False
             return True
 
-        if self._acceptable_keys is None or \
-                                "*" not in self._acceptable_keys:
+        if (self._acceptable_keys is None or \
+                "*" not in self._acceptable_keys) \
+                                and type(key) is not tuple:
             if 48 <= key <= 57: # Normal
                 if self.SetNumber(key-48):
                     return True
@@ -639,6 +642,9 @@ class ViHelper():
             pass
 
         return True
+
+    def KeyCommandInProgress(self):
+        return self.key_inputs
 
     def NextKeyCommandCanBeMotion(self):
         """
@@ -1334,16 +1340,8 @@ class ViHelper():
         Starts a : cmd input for the currently active (or soon to be 
         activated) tab.
 
-        We have use CallAfter if there is a page change event currently
-        in progress (may result in some incorrectly sent key/char evts)
         """
-        if self.ctrl.getMainControl().getMainAreaPanel().preparingPresenter:
-            wx.CallAfter(self.StartCmdInputPostEvents, initial_input, run_cmd)
-            return
-
-        self.StartCmdInputPostEvents(initial_input, run_cmd)
-
-    def StartCmdInputPostEvents(self, initial_input=None, run_cmd=False):
+        # TODO: handle switching between presenters
         selection_range = None
         if self.mode == ViHelper.VISUAL:
             if initial_input is None:
@@ -1592,8 +1590,7 @@ class ViHintDialog(wx.Frame):
         elif accP in ((wx.ACCEL_NORMAL, wx.WXK_DOWN),
                 (wx.ACCEL_NORMAL, wx.WXK_PAGEDOWN),
                 (wx.ACCEL_NORMAL, wx.WXK_NUMPAD_DOWN),
-                (wx.ACCEL_NORMAL, wx.WXK_NUMPAD_PAGEDOWN),
-                (wx.ACCEL_NORMAL, wx.WXK_NEXT)):
+                (wx.ACCEL_NORMAL, wx.WXK_NUMPAD_PAGEDOWN)):
             foundPos = self.viCtrl.executeFollowHint(searchString)
 
         elif matchesAccelPair("ActivateLink", accP):
@@ -1847,6 +1844,12 @@ class CmdParser():
             "inspect" : (self.Pass, self.StartInspection,
                         "Launch the wxPython inspection tool"),
 
+            "start_trace" : (self.Pass, self.StartStackTrace,
+                        "Starts logging a stacktrace file"),
+
+            "start_logging" : (self.Pass, self.StartLogging,
+                        "Starts logging at a higher level"),
+
             "list-keybindings" : (self.Pass, self.ShowKeybindings,
                         "Displays a list of the currently \
                             loaded keybindings"),
@@ -1884,7 +1887,23 @@ class CmdParser():
 
     def StartInspection(self, args=None):
         import wx.lib.inspection
-        wx.lib.inspection.InspectionTool().Show()
+        wx.CallAfter(wx.lib.inspection.InspectionTool().Show)
+        return True
+
+    def StartStackTrace(self, args=None):
+        import stacktracer
+        stacktracer.trace_start("trace.html",interval=5,auto=True)
+
+    def StartLogging(self, args=None):
+        import multiprocessing, logging
+        logger = multiprocessing.log_to_stderr()
+        logger.setLevel(multiprocessing.SUBDEBUG)
+
+#    def Test(self):
+#        SimpleLog("part3")
+#        #callInMainThreadAsync(wx.lib.inspection.InspectionTool().Show)
+#        SimpleLog("part4")
+
 
     def ShowKeybindings(self, args=None):
         # A quick and dirty way to view all currently registered vi
@@ -2180,7 +2199,8 @@ class CmdParser():
         if self.CheckForRangeCmd(text_input):
             return self.ExecuteRangeCmd(text_input)
 
-        if viInputListBox_selection > -1 and self.viInputListBox.HasData():
+        if viInputListBox_selection is not None and \
+                viInputListBox_selection > -1 and self.viInputListBox.HasData():
             arg = (0, self.viInputListBox.GetData(viInputListBox_selection))
         else:
             arg = None
@@ -2645,8 +2665,9 @@ class ViInputDialog(wx.Panel):
 #                rect.GetPosition(), rect.GetSize(),
 #                wx.NO_BORDER | wx.FRAME_FLOAT_ON_PARENT | wx.FRAME_NO_TASKBAR)
 
-        d = wx.PrePanel()
-        self.PostCreate(d)
+        #d = wx.PrePanel()
+        #self.PostCreate(d)
+        wx.Panel.__init__(self)
 
         self.mainControl = mainControl
 
@@ -2669,7 +2690,9 @@ class ViInputDialog(wx.Panel):
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
         self.run_cmd_timer = wx.Timer(self, GUI_ID.TIMER_VI_UPDATE_CMD)
-        self.Bind(wx.EVT_TIMER, self.CheckViInput, id=GUI_ID.TIMER_VI_UPDATE_CMD)
+        #wx.EVT_TIMER(self, GUI_ID.TIMER_VI_UPDATE_CMD, self.CheckViInput)
+        self.Bind(wx.EVT_TIMER, self.CheckViInput, 
+                id=GUI_ID.TIMER_VI_UPDATE_CMD)
 
         self.ctrls.viInputTextField.SetBackgroundColour(
                 ViInputDialog.COLOR_YELLOW)
@@ -2680,8 +2703,13 @@ class ViInputDialog(wx.Panel):
 
         self.Bind(wx.EVT_TEXT, self.OnText, id=GUI_ID.viInputTextField)
         self.ctrls.viInputTextField.Bind(wx.EVT_KEY_DOWN, self.OnKeyDownInput)
-        self.Bind(wx.EVT_TIMER, self.OnTimerIncViInputClose,
-                id=GUI_ID.TIMER_INC_SEARCH_CLOSE)
+
+        #wx.EVT_TIMER(self, GUI_ID.TIMER_INC_SEARCH_CLOSE,
+        #        self.OnTimerIncViInputClose)
+        if self.closeDelay:
+            self.Bind(wx.EVT_TIMER, self.OnTimerIncViInputClose,
+                    id=GUI_ID.TIMER_INC_SEARCH_CLOSE)
+
         self.ctrls.viInputTextField.Bind(wx.EVT_MOUSE_EVENTS, self.OnMouseAnyInput)
 
         self.ctrls.viInputListBox.Bind(wx.EVT_LEFT_DOWN, self.OnLeftMouseListBox)
@@ -2862,9 +2890,9 @@ class ViInputDialog(wx.Panel):
 
         if not result:
             self.ctrl.vi.visualBell("RED")
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
+            self.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
         else:
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
+            self.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
 
     def ExecuteCmd(self, text_input):
         # Should this close the input?
@@ -2890,17 +2918,17 @@ class ViInputDialog(wx.Panel):
         self.run_cmd_timer.Stop()
 
         if self.cmd_parser.CheckForRangeCmd(self.ctrls.viInputTextField.GetValue()):
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_WHITE)
+            self.SetBackgroundColour(ViInputDialog.COLOR_WHITE)
             return
 
         valid_cmd = self.ParseViInput(self.ctrls.viInputTextField.GetValue())
 
         if valid_cmd == False:
             # Nothing found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
+            self.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
         else:
             # Found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
+            self.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
 
 
     def ParseViInput(self, input_text):
@@ -2927,7 +2955,7 @@ class ViInputDialog(wx.Panel):
         wx.CallAfter(self.ctrl.SetScrollAndCaretPosition, pos, x, y)
 
     def ClearListBox(self):
-        self.ctrls.viInputListBox.ClearData()
+        wx.CallAfter(self.ctrls.viInputListBox.ClearData)
 
     def PopulateListBox(self, data, formatted_data, args):
         if data is None or not data:
@@ -3029,12 +3057,16 @@ class ViInputDialog(wx.Panel):
 
         if foundPos == False:
             # Nothing found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
+            self.SetBackgroundColour(ViInputDialog.COLOR_YELLOW)
         else:
             # Found
-            self.ctrls.viInputTextField.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
+            self.SetBackgroundColour(ViInputDialog.COLOR_GREEN)
+        SimpleLog("KeyDownInput end")
 
         # Else don't change
+
+    def SetBackgroundColour(self, colour):
+        callInMainThread(self.ctrls.viInputTextField.SetBackgroundColour, colour)
 
     def ExecuteCurrentCmd(self):
         self.ExecuteCmd(self.GetInput())
