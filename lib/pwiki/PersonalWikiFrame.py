@@ -13,6 +13,7 @@ import time
 import pickle  # to create dependency?
 
 import wx, wx.adv, wx.html
+import aui
 
 # import urllib_red as urllib
 # import urllib
@@ -2293,10 +2294,16 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
         finally:
             del dc
 
+        # The agw implementation of AuiNotebook requires an AuiManager
+        self.auiManager = aui.AuiManager()
+        self.auiManager.SetManagedWindow(self)
 
         # Create main area panel first
         self.mainAreaPanel = MainAreaPanel(self, self, -1)
         self.mainAreaPanel.getMiscEvent().addListener(self)
+
+        self.auiManager.AddPane(self.mainAreaPanel, aui.AuiPaneInfo().Name("mainAreaPanel").CenterPane().PaneBorder(False))
+        self.auiManager.Update()
 
 #         p = self.createNewDocPagePresenterTab()
 #         self.mainAreaPanel.prepareCurrentPresenter(p)
@@ -3429,6 +3436,18 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
                         self.getMainAreaPanel().showPresenter(targetPresenter)
                         
                 else:
+                    # Try and rebuild broken perspective
+                    # occurs on non clean shutdowns
+                    if "=@layout" in mainAreaPerspective:
+                        a, b = mainAreaPerspective.split("=", 1)
+
+                        mainAreaPerspective = "".join([
+                            a, 
+                            r"=*DocPagePresenter={0}=0=textedit\x7cwikipage/{0}".format( 
+                                self.getWikiDocument().getWikiName()), 
+                            b])
+
+
                     self.getMainAreaPanel().setByStoredPerspective(
                             "MainAreaPanel", mainAreaPerspective,
                             self.perspectiveTypeFactory)
