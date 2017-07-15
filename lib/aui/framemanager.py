@@ -108,6 +108,10 @@ from aui_utilities import Clip, PaneCreateStippleBitmap, GetDockingImage, GetSli
 
 from aui_constants import *
 
+if wx.version() > ("4.0.0"):
+    wx.RectPS = wx.Rect
+    wx.BrushFromBitmap = wx.Brush
+
 # Define this as a translation function
 _ = wx.GetTranslation
 
@@ -1993,7 +1997,10 @@ class AuiDockingGuideWindow(wx.Window):
 
         dc.SetPen(wx.TRANSPARENT_PEN)
         dc.SetBrush(wx.Brush(colourTargetBackground))
-        dc.DrawRectangleRect(rect)
+        if wx.version() > ("4.0.0"):
+            dc.DrawRectangle(rect)
+        else:
+            dc.DrawRectangleRect(rect)
 
         dc.SetPen(wx.Pen(colourTargetBorder))
 
@@ -2053,7 +2060,10 @@ class AuiDockingGuideWindow(wx.Window):
         rect.Deflate(4, 4)
         dc.SetPen(wx.Pen(colourIconBorder))
         dc.SetBrush(wx.Brush(colourIconBackground))
-        dc.DrawRectangleRect(rect)
+        if wx.version() > ("4.0.0"):
+            dc.DrawRectangle(rect)
+        else:
+            dc.DrawRectangleRect(rect)
 
         right1 = rect.GetRight() + 1
         bottom1 = rect.GetBottom() + 1
@@ -2836,15 +2846,29 @@ class AuiDockingHintWindow(wx.Frame):
         :param `event`: an instance of :class:`PaintEvent` to be processed.
         """
 
-        rect = wx.RectPS(wx.Point(0, 0), self.GetSize())
+        if wx.version() > ("4.0.0"):
+            rect = wx.Rect(wx.Point(0, 0), self.GetSize())
 
-        dc = wx.PaintDC(self)
-        event.Skip()
+            dc = wx.PaintDC(self)
+            event.Skip()
 
-        dc.SetBrush(wx.TRANSPARENT_BRUSH)
-        dc.SetPen(wx.Pen(wx.Colour(60, 60, 60), 5))
-        rect.Deflate(1, 1)
-        dc.DrawRectangleRect(rect)
+            dc.SetBrush(wx.TRANSPARENT_BRUSH)
+            dc.SetPen(wx.Pen(wx.Colour(60, 60, 60), 5))
+            rect.Deflate(1, 1)
+            dc.DrawRectangle(rect)
+        else:
+            rect = wx.RectPS(wx.Point(0, 0), self.GetSize())
+
+            dc = wx.PaintDC(self)
+            event.Skip()
+
+            dc.SetBrush(wx.TRANSPARENT_BRUSH)
+            dc.SetPen(wx.Pen(wx.Colour(60, 60, 60), 5))
+            rect.Deflate(1, 1)
+            if wx.version() > ("4.0.0"):
+                dc.DrawRectangle(rect)
+            else:
+                dc.DrawRectangleRect(rect)
 
 
 # ---------------------------------------------------------------------------- #
@@ -3452,7 +3476,10 @@ def DrawResizeHint(dc, rect):
             dc.SetPen(wx.TRANSPARENT_PEN)
             dc.SetBrush(wx.BLACK_BRUSH)
         dc.SetLogicalFunction(wx.INVERT)
-        dc.DrawRectangleRect(rect)
+        if wx.version() > ("4.0.0"):
+            dc.DrawRectangle(rect)
+        else:
+            dc.DrawRectangleRect(rect)
         dc.SetLogicalFunction(wx.COPY)
     else:
         stipple = PaneCreateStippleBitmap()
@@ -3461,7 +3488,10 @@ def DrawResizeHint(dc, rect):
         dc.SetPen(wx.TRANSPARENT_PEN)
 
         dc.SetLogicalFunction(wx.XOR)
-        dc.DrawRectangleRect(rect)
+        if wx.version() > ("4.0.0"):
+            dc.DrawRectangle(rect)
+        else:
+            dc.DrawRectangleRect(rect)
 
 
 def CopyDocksAndPanes(src_docks, src_panes):

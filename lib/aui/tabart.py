@@ -834,7 +834,10 @@ class AuiDefaultTabArt(object):
 
             dc.SetBrush(wx.TRANSPARENT_BRUSH)
             dc.SetPen(self._focusPen)
-            dc.DrawRoundedRectangleRect(focusRect, 2)
+            if wx.version() > ("4.0.0"):
+                dc.DrawRoundedRectangle(focusRect, 2)
+            else:
+                dc.DrawRoundedRectangleRect(focusRect, 2)
         
 
     def GetBestTabCtrlSize(self, wnd, pages, required_bmp_size):
