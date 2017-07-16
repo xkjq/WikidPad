@@ -1650,12 +1650,18 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
 
         wxHelper.appendToMenuByMenuDesc(tabsMenu, FOLD_MENU, self.keyBindings)
 
-        self.Bind(wx.EVT_MENU, self.OnCmdCheckShowFolding, id=GUI_ID.CMD_CHECKBOX_SHOW_FOLDING)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateShowFolding, id=GUI_ID.CMD_CHECKBOX_SHOW_FOLDING)
+        self.Bind(wx.EVT_MENU, self.OnCmdCheckShowFolding, 
+                id=GUI_ID.CMD_CHECKBOX_SHOW_FOLDING)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateShowFolding, 
+                id=GUI_ID.CMD_CHECKBOX_SHOW_FOLDING)
 
-        self.Bind(wx.EVT_MENU, lambda evt: self.getActiveEditor().toggleCurrentFolding(), id=GUI_ID.CMD_TOGGLE_CURRENT_FOLDING)
-        self.Bind(wx.EVT_MENU, lambda evt: self.getActiveEditor().unfoldAll(), id=GUI_ID.CMD_UNFOLD_ALL_IN_CURRENT)
-        self.Bind(wx.EVT_MENU, lambda evt: self.getActiveEditor().foldAll(), id=GUI_ID.CMD_FOLD_ALL_IN_CURRENT)
+        self.Bind(wx.EVT_MENU, 
+                lambda evt: self.getActiveEditor().toggleCurrentFolding(), 
+                id=GUI_ID.CMD_TOGGLE_CURRENT_FOLDING)
+        self.Bind(wx.EVT_MENU, lambda evt: self.getActiveEditor().unfoldAll(), 
+                id=GUI_ID.CMD_UNFOLD_ALL_IN_CURRENT)
+        self.Bind(wx.EVT_MENU, lambda evt: self.getActiveEditor().foldAll(), 
+                id=GUI_ID.CMD_FOLD_ALL_IN_CURRENT)
         
 
 
@@ -2617,8 +2623,10 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
                     self.HOTKEY_ID_HIDESHOW_BYWIKI,
                     self.configuration.get("main",
                     "hotKey_showHide_byWiki", ""))
-        self.hotKeyDummyWindow.Bind(wx.EVT_HOTKEY, self.OnShowHideHotkey, id=self.HOTKEY_ID_HIDESHOW_BYAPP)
-        self.hotKeyDummyWindow.Bind(wx.EVT_HOTKEY, self.OnShowHideHotkey, id=self.HOTKEY_ID_HIDESHOW_BYWIKI)
+        self.hotKeyDummyWindow.Bind(wx.EVT_HOTKEY, self.OnShowHideHotkey, 
+                id=self.HOTKEY_ID_HIDESHOW_BYAPP)
+        self.hotKeyDummyWindow.Bind(wx.EVT_HOTKEY, self.OnShowHideHotkey, 
+                id=self.HOTKEY_ID_HIDESHOW_BYWIKI)
 
 
     def createWindow(self, winProps, parent):
@@ -3796,6 +3804,8 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
                     forceReopen, **evtprops)
 
             self.getMainAreaPanel().showPresenter(dpp)
+
+            self.getMainAreaPanel().updateConfig()
             ## _prof.stop()
         except (WikiFileNotFoundException, IOError, OSError, DbAccessError) as e:
             self.lostAccess(e)
@@ -3845,6 +3855,8 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
         if not tabMode & 1:
             # Show in foreground (if presenter is in other window, this does nothing)
             self.getMainAreaPanel().showPresenter(presenter)
+
+        self.getMainAreaPanel().updateConfig()
 
         return presenter
 
@@ -4061,8 +4073,11 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
         Read information from page and present it in the field 1 of the
         status bar and in the title bar.
         """
-        fmt = mbcsEnc(self.getConfig().get("main", "pagestatus_timeformat"),
-                "replace")[0]
+        # I'm not sure what the logic behind mbcsEnc is but it breaks
+        # the following (and it works without)
+        fmt = self.getConfig().get("main", "pagestatus_timeformat")
+        #fmt = mbcsEnc(self.getConfig().get("main", "pagestatus_timeformat"),
+        #        "replace")[0]
 
         if docPage is None:
             docPage = self.getCurrentDocPage()
@@ -4495,6 +4510,8 @@ camelCaseWordsEnabled: false;a=[camelCaseWordsEnabled: false]\\n
     def showWikiWordRenameDialog(self, wikiWord=None):
         if wikiWord is None:
             wikiWord = self.getCurrentWikiWord()
+            # Save all open pages (so new pages are created)
+            self.saveAllDocPages()
 
         if wikiWord is not None:
             wikiWord = self.getWikiDocument().getWikiPageNameForLinkTerm(wikiWord)
@@ -5914,11 +5931,15 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         self.Bind(wx.EVT_MENU, self.OnCmdExit, id=GUI_ID.TBMENU_EXIT)
 
         if self.pWiki.clipboardInterceptor is not None:
-            self.Bind(wx.EVT_MENU, self.pWiki.OnClipboardCatcherAtCursor, id=GUI_ID.CMD_CLIPBOARD_CATCHER_AT_CURSOR)
-            self.Bind(wx.EVT_MENU, self.pWiki.OnClipboardCatcherOff, id=GUI_ID.CMD_CLIPBOARD_CATCHER_OFF)
+            self.Bind(wx.EVT_MENU, self.pWiki.OnClipboardCatcherAtCursor, 
+                    id=GUI_ID.CMD_CLIPBOARD_CATCHER_AT_CURSOR)
+            self.Bind(wx.EVT_MENU, self.pWiki.OnClipboardCatcherOff, 
+                    id=GUI_ID.CMD_CLIPBOARD_CATCHER_OFF)
 
-            self.Bind(wx.EVT_UPDATE_UI, self.pWiki.OnUpdateClipboardCatcher, id=GUI_ID.CMD_CLIPBOARD_CATCHER_AT_CURSOR)
-            self.Bind(wx.EVT_UPDATE_UI, self.pWiki.OnUpdateClipboardCatcher, id=GUI_ID.CMD_CLIPBOARD_CATCHER_OFF)
+            self.Bind(wx.EVT_UPDATE_UI, self.pWiki.OnUpdateClipboardCatcher, 
+                    id=GUI_ID.CMD_CLIPBOARD_CATCHER_AT_CURSOR)
+            self.Bind(wx.EVT_UPDATE_UI, self.pWiki.OnUpdateClipboardCatcher, 
+                    id=GUI_ID.CMD_CLIPBOARD_CATCHER_OFF)
 
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_UP, self.OnLeftUp)
 
