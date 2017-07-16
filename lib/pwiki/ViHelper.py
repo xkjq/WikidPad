@@ -194,9 +194,6 @@ class ViHelper():
         self.jumps = []
         self.current_jump = -1
 
-        print (self.ctrl.presenter.getMainControl())
-        print (self.ctrl.presenter.getMainControl().windowLayouter)
-        print (self.ctrl.presenter.getMainControl().windowLayouter.getWindowByName("vi input"))
         self.input_window = self.ctrl.presenter.getMainControl().windowLayouter.getWindowByName("vi input")
 
         self.input_search_history = ViInputHistory()
@@ -1902,6 +1899,10 @@ class CmdParser():
         logger = multiprocessing.log_to_stderr()
         logger.setLevel(multiprocessing.SUBDEBUG)
 
+#    def Test(self):
+#        SimpleLog("part3")
+#        #callInMainThreadAsync(wx.lib.inspection.InspectionTool().Show)
+#        SimpleLog("part4")
 
 
     def ShowKeybindings(self, args=None):
