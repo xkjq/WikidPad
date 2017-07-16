@@ -957,6 +957,10 @@ def formatWxDate(frmStr, date):
 
     frmStr = "".join(resParts)
 
+    # wxPython 4.0.0a3 seg faults if trying to format with a trailing %
+    if frmStr.strip()[-1] == "%":
+        raise TypeError
+
     return date.Format(unescapeWithRe(frmStr))
 
 
