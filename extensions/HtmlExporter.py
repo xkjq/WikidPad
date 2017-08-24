@@ -5,7 +5,7 @@
 # from Enum import Enumeration
 import sys, os, os.path, re, traceback, locale, time, urllib.request, urllib.parse, urllib.error
 from os.path import join, exists
-from io import StringIO
+from io import StringIO, BytesIO
 import shutil
 
 import pwiki.urllib_red as urllib
@@ -1494,10 +1494,10 @@ class HtmlExporter(AbstractExporter):
                 imgFile = urllib.request.urlopen(absUrl)
                 imgData = imgFile.read()
                 imgFile.close()
-                imgFile = StringIO(imgData)
+                imgFile = BytesIO(imgData)
 
-            img = wx.EmptyImage(0, 0)
-            img.LoadStream(imgFile)
+            img = wx.Image(0, 0)
+            img.LoadFile(imgFile)
             imgFile.close()
             
             if img.Ok():
@@ -1881,7 +1881,10 @@ class HtmlExporter(AbstractExporter):
                     self.mainControl.getWikiDocument()):
                 return
 
-            value = langHelper.resolveWikiWordLink(value, containingPage)
+            try:
+                value = langHelper.resolveWikiWordLink(value, containingPage)
+            except ValueError:
+                return
 
             docpage = self.wikiDocument.getWikiPageNoError(value)
             pageAst = docpage.getLivePageAst()

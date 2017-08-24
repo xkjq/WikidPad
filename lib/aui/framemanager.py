@@ -176,7 +176,11 @@ EVT_AUI_PERSPECTIVE_CHANGED = wx.PyEventBinder(wxEVT_AUI_PERSPECTIVE_CHANGED, 0)
 
 # ---------------------------------------------------------------------------- #
 
+<<<<<<< HEAD
 class AuiDockInfo(object):
+=======
+class AuiDockInfo:
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
     """ A class to store all properties of a dock. """
 
     def __init__(self):
@@ -184,9 +188,12 @@ class AuiDockInfo(object):
         Default class constructor.
         Used internally, do not call it in your code!
         """
+<<<<<<< HEAD
 
         object.__init__(self)
 
+=======
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
         self.dock_direction = 0
         self.dock_layer = 0
         self.dock_row = 0
@@ -223,7 +230,11 @@ class AuiDockInfo(object):
 
 # ---------------------------------------------------------------------------- #
 
+<<<<<<< HEAD
 class AuiDockingGuideInfo(object):
+=======
+class AuiDockingGuideInfo:
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
     """ A class which holds information about VS2005 docking guide windows. """
 
     def __init__(self, other=None):
@@ -4808,7 +4819,11 @@ class AuiManager(wx.EvtHandler):
 
         if pinfo.window:
             if pinfo.best_size == wx.Size(-1, -1):
+<<<<<<< HEAD
                 pinfo.best_size = pinfo.window.GetBestSize()
+=======
+                pinfo.best_size = pinfo.window.GetClientSize()
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
 
             if isinstance(pinfo.window, wx.ToolBar):
                 # GetClientSize() doesn't get the best size for
@@ -4992,7 +5007,11 @@ class AuiManager(wx.EvtHandler):
                 elif p.IsNotebookPage():
                     notebook = self._notebooks[p.notebook_id]
                     id = notebook.GetPageIndex(p.window)
+<<<<<<< HEAD
                     notebook.RemovePage(id)
+=======
+                    notebook.RemovePageByIdx(id)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
                     p.window.Reparent(self._frame)
 
                 # make sure there are no references to this pane in our uiparts,
@@ -5055,7 +5074,11 @@ class AuiManager(wx.EvtHandler):
                     notebook = self._notebooks[nid]
                     page_idx = notebook.GetPageIndex(pane_info.window)
                     if page_idx >= 0:
+<<<<<<< HEAD
                         notebook.RemovePage(page_idx)
+=======
+                        notebook.RemovePageByIdx(page_idx)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
 
         # now we need to either destroy or hide the pane
         to_destroy = 0
@@ -5075,7 +5098,11 @@ class AuiManager(wx.EvtHandler):
             notebook = self._notebooks[pane_info.notebook_id]
             while notebook.GetPageCount():
                 window = notebook.GetPage(0)
+<<<<<<< HEAD
                 notebook.RemovePage(0)
+=======
+                notebook.RemovePageByIdx(0)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
                 info = self.GetPane(window)
                 if info.IsOk():
                     info.notebook_id = -1
@@ -6599,7 +6626,11 @@ class AuiManager(wx.EvtHandler):
                 window = notebook.GetPage(pageCounter)
                 paneInfo = self.GetPane(window)
                 if paneInfo.IsOk() and paneInfo.notebook_id != nb:
+<<<<<<< HEAD
                     notebook.RemovePage(pageCounter)
+=======
+                    notebook.RemovePageByIdx(pageCounter)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
                     window.Hide()
                     window.Reparent(self._frame)
                     pageCounter -= 1
@@ -6659,7 +6690,11 @@ class AuiManager(wx.EvtHandler):
 
                     self.DetachPane(notebook)
 
+<<<<<<< HEAD
                     notebook.RemovePage(0)
+=======
+                    notebook.RemovePageByIdx(0)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
                     notebook.Destroy()
 
                 else:
@@ -6689,7 +6724,11 @@ class AuiManager(wx.EvtHandler):
                     page = notebook.GetPage(idx)
                     pane = self.GetPane(page)
                     pages_and_panes.append((page, pane))
+<<<<<<< HEAD
                     notebook.RemovePage(idx)
+=======
+                    notebook.RemovePageByIdx(idx)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
                 sorted_pnp = sorted(pages_and_panes, key=lambda tup: tup[1].dock_pos)
 
                 # Grab the attributes from the panes which are ordered
@@ -7344,7 +7383,11 @@ class AuiManager(wx.EvtHandler):
 
         if obj and isinstance(obj, auibook.AuiTabCtrl):
 
+<<<<<<< HEAD
             page_idx = obj.GetActivePage()
+=======
+            page_idx = obj.GetActivePageIdx()
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
 
             if page_idx >= 0:
                 page = obj.GetPage(page_idx)
@@ -7434,7 +7477,11 @@ class AuiManager(wx.EvtHandler):
             p = self.PaneFromTabEvent(event)
             if p.IsOk():
 
+<<<<<<< HEAD
                 # veto it because we will call "RemovePage" ourselves
+=======
+                # veto it because we will call "RemovePageByIdx" ourselves
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
                 event.Veto()
 
                 # Now ask the app if they really want to close...

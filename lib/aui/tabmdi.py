@@ -486,7 +486,11 @@ class AuiMDIChildFrame(wx.Panel):
             idx = pClientWindow.GetPageIndex(self)
 
             if idx != wx.NOT_FOUND:
+<<<<<<< HEAD
                 pClientWindow.RemovePage(idx)
+=======
+                pClientWindow.RemovePageByIdx(idx)
+>>>>>>> b1e80a4021fd278c762bc2b719334bbd1ecdb221
 
         self.Destroy()
 
