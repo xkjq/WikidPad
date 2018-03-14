@@ -1308,6 +1308,8 @@ else:
     def urlFromPathname(fn, addSafe=''):
         if isinstance(fn, str):
             fn = utf8Enc(fn, "replace")[0]
+        elif isinstance(fn, bytes):
+            fn = utf8Dec(fn)[0]
             
         # riscos not supported
         url = urlQuote(fn, safe='/$' + addSafe)
