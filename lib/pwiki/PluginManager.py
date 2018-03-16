@@ -8,6 +8,7 @@ import os, sys, traceback, os.path, imp, collections
 import wx
 
 from . import Utilities
+import ExceptionLogger
 
 from .StringOps import mbcsEnc, pathEnc
 from functools import reduce
@@ -355,6 +356,9 @@ class PluginManager:
                         if hasattr(module, "WIKIDPAD_PLUGIN"):
                             self.registerPlugin(module)
                 except:
+                    ExceptionLogger.logOptionalComponentException(
+                            "Unable to load plugin: {}".format(fullname))
+
                     traceback.print_exc()
             del sys.path[-1]
           
