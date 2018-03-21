@@ -491,7 +491,7 @@ class WikiHtmlView(wx.html.HtmlWindow):
                             "Open Containing Folder;"
                             "CMD_OPEN_CONTAINING_FOLDER_THIS")
 
-            self.PopupMenuXY(menu, evt.GetX(), evt.GetY())
+            self.PopupMenu(menu, evt.GetX(), evt.GetY())
         else:
             # Jump to another wiki page
             

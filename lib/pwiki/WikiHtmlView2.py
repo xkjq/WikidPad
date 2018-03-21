@@ -667,7 +667,7 @@ class WikiHtmlView2(wx.Panel):
         if pageHistDeepness[1] == 0:
             forwardMenuItem.Enable(False)
         #    forward_menu_item.set_sensitive(False)
-        #self.PopupMenuXY(menu, evt.GetX(), evt.GetY())
+        #self.PopupMenu(menu, evt.GetX(), evt.GetY())
         self.PopupMenu(menu)
         menu.Destroy()
 
