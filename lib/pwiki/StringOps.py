@@ -1204,6 +1204,9 @@ def urlQuote(s, safe='/'):
     The characters u"{", u"}", u"|", u"\", u"^", u"~", u"[", u"]", u"`"
     are considered unsafe and should be quoted as well.
     """
+    if type(s) == bytes:
+        s = s.decode()
+
     result = []
     
     for c in s:
@@ -1308,8 +1311,6 @@ else:
     def urlFromPathname(fn, addSafe=''):
         if isinstance(fn, str):
             fn = utf8Enc(fn, "replace")[0]
-        elif isinstance(fn, bytes):
-            fn = utf8Dec(fn)[0]
             
         # riscos not supported
         url = urlQuote(fn, safe='/$' + addSafe)
