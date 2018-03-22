@@ -146,16 +146,31 @@ class DocStructureCtrl(EnhancedListControl):
         presenter = self.mainControl.getCurrentDocPagePresenter()
         if presenter is None:
             return
+        
+        subCtrlType = presenter.getCurrentSubControlName()
+        subCtrl = presenter.getCurrentSubControl()
 
-        subCtrl = presenter.getSubControl("textedit")
         if subCtrl is None:
             return
-        
-        sel = subCtrl.LineFromPosition(subCtrl.GetCurrentPos())
-        
-        if sel != self.lastSelection or callAlways:
-            self.lastSelection = sel
-            self.onSelectionChanged(subCtrl.GetSelectionCharPos())
+
+        if subCtrlType == "textedit":
+            
+            sel = subCtrl.LineFromPosition(subCtrl.GetCurrentPos())
+            
+            if sel != self.lastSelection or callAlways:
+                self.lastSelection = sel
+                self.onSelectionChanged(subCtrl.GetSelectionCharPos())
+
+        elif subCtrlType == "preview":
+            try:
+                if subCtrl.currentPageHeading is not None:
+                    sel = subCtrl.currentPageHeading
+                    if sel != self.lastSelection or callAlways:
+                        self.lastSelection = sel
+                        self.onSelectionChanged((int(sel), 0))
+                    #print (subCtrl.currentPageHeading)
+            except AttributeError:
+                pass
 
 
     def onSelectionChanged(self, sel):

@@ -1118,6 +1118,7 @@ class HtmlExporter(AbstractExporter):
 
         if self.exportType == "html_previewWK":
             javascriptHeader = '\n<script type="text/javascript" src="{0}"></script>'.format(os.path.join(self.mainControl.wikiAppDir, "lib", "js", "jquery", "jquery-2.0.2.min.js"))
+            javascriptHeader = '\n<script type="text/javascript" src="{0}"></script>'.format(os.path.join(self.mainControl.wikiAppDir, "lib", "js", "intersection-observer.js"))
 
         styleSheets = "\n".join(styleSheets)
 

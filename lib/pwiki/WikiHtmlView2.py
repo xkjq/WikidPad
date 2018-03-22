@@ -319,6 +319,8 @@ class WikiHtmlView2(wx.Panel):
         self.passNavigate = 0
         self.freezeCount = 0
 
+        self.currentPageHeading = None
+
         # TODO Should be changed to presenter as controller
         self.exporterInstance = PluginManager.getExporterTypeDict(
                 self.presenter.getMainControl(), False)["html_single"][0]\
@@ -594,6 +596,8 @@ class WikiHtmlView2(wx.Panel):
                 """.format(anchor))
             evt.Veto()
             return True
+        elif "PROXY_EVENT//HEADING_CHANGE/" in uri:
+            self.currentPageHeading = uri.split("/")[-1][2:]
         # This breaks if not in VI mode
         elif self.vi is not None:
             if self.vi.OnViPageNavigation(evt, uri):
@@ -690,7 +694,9 @@ class WikiHtmlView2(wx.Panel):
     def OnPageLoaded(self, evt):
         """
         Called when page is loaded
+
         """
+        #TODO: Move into seperate file?
 
         # As the html2 ctrl eats all mouse events we have to use a javascript
         # hack to check when the ctrl gains focus
@@ -801,6 +807,23 @@ class WikiHtmlView2(wx.Panel):
                 link = links[i].href;
                 setupHoverLinks(links[i]);
         }
+
+
+// Monitor page position so we can track headings (in pagestructure)
+// A polyfiller is required until we get a newer webkit version
+headingObserver = new IntersectionObserver(function(entries) {
+    //React if element is at the top of the viewport
+    if ((entries[0].boundingClientRect["y"] < 100 & entries[0].boundingClientRect["y"] > -400) || entries[0].boundingClientRect["y"] == undefined){
+    triggerEvent("HEADING_CHANGE/"+entries[0].target.previousSibling.name);
+  }
+}, { threshold: [0.25, 0.5, 0.75, 1] });
+
+headings = document.querySelectorAll("h1, h2, h3, h4, h5, h6");
+for (i=0; i<headings.length; i++) {
+    headingObserver.observe(headings[i]);
+};
+
+
 
 
 // Attempt to load jQuery
