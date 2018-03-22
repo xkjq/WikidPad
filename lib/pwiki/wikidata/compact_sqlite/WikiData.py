@@ -48,6 +48,10 @@ import Consts
 
 class WikiData:
     "Interface to wiki data."
+
+    # Cache for wikiterms, format: (len, dict(matchtermsnormcase -> word))
+    definedWikiMatchTerms = (0, {})
+
     def __init__(self, wikiDocument, dataDir, tempDir):
         self.wikiDocument = wikiDocument
         self.dataDir = dataDir
@@ -917,6 +921,33 @@ class WikiData:
         except (IOError, OSError, sqlite.Error) as e:
             traceback.print_exc()
             raise DbReadAccessError(e)
+
+
+    def getAllDefinedWikiMatchTermsNormcase(self):
+        """
+        Get the names of all defined matchterms in db
+        Function must work for read-only wiki.
+
+        Returns a dict(matchtermnormcase -> word)
+        """
+
+        # As this query can take a long time to execute we cache the output
+        # Not failproof - fails if changes result in same length
+        if self.definedWikiMatchTerms[0] == \
+                self.connWrap.execSqlQuerySingleItem(
+                        "select count(*) from wikiwordmatchterms where (type & 2) != 0"):
+            return self.definedWikiMatchTerms[1]
+         
+        try:
+            results = self.connWrap.execSqlQuery(
+                    "select matchtermnormcase, word from wikiwordmatchterms where (type & 2) != 0")
+            # To workaround non unique matchtermnormcase
+            self.definedWikiMatchTerms = (len(results), dict(results))
+        except (IOError, OSError, sqlite.Error, ValueError) as e:
+            traceback.print_exc()
+            raise DbReadAccessError(e)
+
+        return self.definedWikiMatchTerms[1]
 
 
     def getDefinedWikiPageNamesStartingWith(self, thisStr):
